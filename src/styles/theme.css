@@ -1,0 +1,150 @@
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --font-size: 14px;
+  --background: #F6F4F0;
+  --foreground: #1C1A17;
+  --card: #FFFFFF;
+  --card-foreground: #1C1A17;
+  --popover: #FFFFFF;
+  --popover-foreground: #1C1A17;
+  --primary: #5145CD;
+  --primary-foreground: #FFFFFF;
+  --secondary: #EFECE7;
+  --secondary-foreground: #1C1A17;
+  --muted: #EFECE7;
+  --muted-foreground: #6B6458;
+  --accent: #E8E7F8;
+  --accent-foreground: #3A3199;
+  --destructive: #C0472B;
+  --destructive-foreground: #FFFFFF;
+  --border: #DDD9D2;
+  --input: transparent;
+  --input-background: #EFECE7;
+  --switch-background: #C4BFB5;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --ring: #5145CD;
+  --chart-1: #5145CD;
+  --chart-2: #3D6B8C;
+  --chart-3: #C6A664;
+  --chart-4: #C0472B;
+  --chart-5: #7C5C4A;
+  --radius: 0.5rem;
+  --sidebar: #EFECE7;
+  --sidebar-foreground: #1C1A17;
+  --sidebar-primary: #5145CD;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #E8E7F8;
+  --sidebar-accent-foreground: #3A3199;
+  --sidebar-border: #DDD9D2;
+  --sidebar-ring: #5145CD;
+}
+
+.dark {
+  --background: #1A1917;
+  --foreground: #F0EDE8;
+  --card: #242220;
+  --card-foreground: #F0EDE8;
+  --popover: #242220;
+  --popover-foreground: #F0EDE8;
+  --primary: #6C66E6;
+  --primary-foreground: #FFFFFF;
+  --secondary: #141310;
+  --secondary-foreground: #F0EDE8;
+  --muted: #242220;
+  --muted-foreground: #A09890;
+  --accent: #231C63;
+  --accent-foreground: #9A95F2;
+  --destructive: #E0614A;
+  --destructive-foreground: #FFFFFF;
+  --border: #38352F;
+  --input: #242220;
+  --input-background: #141310;
+  --switch-background: #524E47;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --ring: #6C66E6;
+  --chart-1: #6C66E6;
+  --chart-2: #5A8FB0;
+  --chart-3: #DBC286;
+  --chart-4: #E0614A;
+  --chart-5: #9E7A5A;
+  --radius: 0.5rem;
+  --sidebar: #1A1917;
+  --sidebar-foreground: #F0EDE8;
+  --sidebar-primary: #6C66E6;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #231C63;
+  --sidebar-accent-foreground: #9A95F2;
+  --sidebar-border: #38352F;
+  --sidebar-ring: #6C66E6;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', 'Noto Sans Kannada', 'Noto Sans Devanagari', sans-serif;
+  }
+
+  html {
+    font-size: var(--font-size);
+  }
+
+  h1 { font-size: 18px; font-weight: 500; line-height: 1.4; }
+  h2 { font-size: 15px; font-weight: 500; line-height: 1.5; }
+  h3 { font-size: 14px; font-weight: 500; line-height: 1.5; }
+  label { font-size: 11px; font-weight: 500; line-height: 1.5; }
+  button { font-size: 13px; font-weight: 500; line-height: 1.5; }
+  input, select, textarea { font-size: 13px; font-weight: 400; line-height: 1.5; }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #DDD9D2; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #C4BFB5; }
+}

@@ -1,0 +1,2095 @@
+﻿<USER_REQUEST>
+# ASOKA HMS â€” DEFINITIVE MASTER BUILD PROMPT
+## Asoka Homoeopathic Medical Centre â€” Clinical Management System
+## Firebase Backend Â· React + Vite Â· Zero Dummy Data Â· Fully Functional
+
+---
+
+> READ EVERY LINE OF THIS DOCUMENT BEFORE TOUCHING ANY FILE.
+> The Figma Make export is already in this repo. It is a 1,500-line prototype
+> called App.tsx with every screen fully designed and working with hardcoded
+> dummy data. Your job is to take that design exactly as-is and make it fully
+> functional by connecting it to Firebase. Do not redesign anything.
+> Do not change the visual design. Replace data â€” not UI.
+
+---
+
+## PART 1 â€” UNDERSTAND WHAT EXISTS
+
+The zip file contains a complete, working React prototype. Here is exactly what
+is already built and must NOT be changed:
+
+### Already built â€” DO NOT TOUCH:
+
+**`src/styles/theme.css`** â€” Complete design token system. All CSS variables.
+Light mode + dark mode. This file is perfect. Never edit it.
+
+**`src/app/components/ui/`** â€” 45 shadcn/Radix UI components already built:
+accordion, alert-dialog, alert, aspect-ratio, avatar, badge, breadcrumb, button,
+calendar, card, carousel, chart, checkbox, collapsible, command, context-menu,
+dialog, drawer, dropdown-menu, form, hover-card, input, input-otp, label,
+menubar, navigation-menu, pagination, popover, progress, radio-group, resizable,
+scroll-area, select, separator, sheet, sidebar, skeleton, slider, sonner, switch,
+table, tabs, textarea, toggle, toggle-group, tooltip, use-mobile, utils.
+These are production-quality. Use them everywhere. Never rebuild them.
+
+**`package.json`** â€” All these packages are already installed. Do not reinstall:
+react-hook-form, recharts, date-fns, sonner, cmdk, motion, react-dnd,
+react-dnd-html5-backend, react-router (v7), next-themes, lucide-react,
+vaul, @radix-ui/* (full suite), class-variance-authority, clsx, tailwind-merge.
+
+**`src/app/App.tsx`** â€” The entire UI prototype with all 11 screens:
+Login, Dashboard, Patient List, New Patient, Patient Profile, New Visit,
+Appointments, Billing, Medicine Master, Reports, Settings.
+Every screen is pixel-perfect and functional as a prototype.
+The design system it uses (palette P, helper functions, atom components
+Bdg, Av, Btn, Inp, Sel, Card, StatCard, VitalBox, SectionCard) is correct
+and must be kept exactly as-is.
+
+### The only problems with App.tsx:
+1. All data is hardcoded arrays (PATIENTS, APPTS, MEDS_LIST, etc.)
+2. Auth is `onLogin={() => setScreen("dashboard")}` â€” fake
+3. `screen` is a useState string â€” not a real router
+4. No Firebase. No persistence. No real backend.
+
+Your job: fix exactly those 4 problems. Nothing else.
+
+---
+
+## PART 2 â€” WHAT TO INSTALL
+
+Run this once. Nothing else:
+
+```bash
+pnpm add firebase @tanstack/react-query@5 zustand zod @hookform/resolvers jspdf
+pnpm add -D firebase-admin ts-node @types/node
+```
+
+---
+
+## PART 3 â€” FILE STRUCTURE TO CREATE
+
+Do not restructure anything that exists. Only create new files:
+
+```
+src/
+â”œâ”€â”€ lib/
+â”‚   â”œâ”€â”€ firebase.ts              â† Firebase app init
+â”‚   â”œâ”€â”€ auth.ts                  â† Auth helpers
+â”‚   â””â”€â”€ services/
+â”‚       â”œâ”€â”€ patients.service.ts
+â”‚       â”œâ”€â”€ visits.service.ts
+â”‚       â”œâ”€â”€ diagnoses.service.ts
+â”‚       â”œâ”€â”€ vitals.service.ts
+â”‚       â”œâ”€â”€ complaints.service.ts
+â”‚       â”œâ”€â”€ prescriptions.service.ts
+â”‚       â”œâ”€â”€ documents.service.ts
+â”‚       â”œâ”€â”€ appointments.service.ts
+â”‚       â”œâ”€â”€ invoices.service.ts
+â”‚       â”œâ”€â”€ medicines.service.ts
+â”‚       â”œâ”€â”€ users.service.ts
+â”‚       â”œâ”€â”€ settings.service.ts
+â”‚       â”œâ”€â”€ reports.service.ts
+â”‚       â””â”€â”€ audit.service.ts
+â”œâ”€â”€ store/
+â”‚   â”œâ”€â”€ auth.store.ts
+â”‚   â””â”€â”€ ui.store.ts
+â”œâ”€â”€ hooks/
+â”‚   â”œâ”€â”€ usePatients.ts
+â”‚   â”œâ”€â”€ useVisit.ts
+â”‚   â”œâ”€â”€ useMedicines.ts
+â”‚   â”œâ”€â”€ useAppointments.ts
+â”‚   â”œâ”€â”€ useInvoices.ts
+â”‚   â””â”€â”€ useReports.ts
+â”œâ”€â”€ types/
+â”‚   â””â”€â”€ index.ts                 â† All TypeScript interfaces
+â””â”€â”€ app/
+    â”œâ”€â”€ pages/
+    â”‚   â”œâ”€â”€ LoginPage.tsx
+    â”‚   â”œâ”€â”€ DashboardPage.tsx
+    â”‚   â”œâ”€â”€ PatientsPage.tsx
+    â”‚   â”œâ”€â”€ NewPatientPage.tsx
+    â”‚   â”œâ”€â”€ PatientProfilePage.tsx
+    â”‚   â”œâ”€â”€ NewVisitPage.tsx
+    â”‚   â”œâ”€â”€ VisitDetailPage.tsx
+    â”‚   â”œâ”€â”€ AppointmentsPage.tsx
+    â”‚   â”œâ”€â”€ BillingPage.tsx
+    â”‚   â”œâ”€â”€ MedicinesPage.tsx
+    â”‚   â”œâ”€â”€ ReportsPage.tsx
+    â”‚   â””â”€â”€ SettingsPage.tsx
+    â”œâ”€â”€ components/
+    â”‚   â”œâ”€â”€ layout/
+    â”‚   â”‚   â”œâ”€â”€ AppShell.tsx
+    â”‚   â”‚   â”œâ”€â”€ AppSidebar.tsx
+    â”‚   â”‚   â”œâ”€â”€ TopBar.tsx
+    â”‚   â”‚   â””â”€â”€ CommandPalette.tsx
+    â”‚   â”œâ”€â”€ visits/
+    â”‚   â”‚   â”œâ”€â”€ DiagnosesCard.tsx
+    â”‚   â”‚   â”œâ”€â”€ VitalsCard.tsx
+    â”‚   â”‚   â”œâ”€â”€ ComplaintsCard.tsx
+    â”‚   â”‚   â”œâ”€â”€ PrescriptionCard.tsx
+    â”‚   â”‚   â”œâ”€â”€ SignaturePad.tsx
+    â”‚   â”‚   â””â”€â”€ VisitTimeline.tsx
+    â”‚   â””â”€â”€ common/
+    â”‚       â”œâ”€â”€ TagInput.tsx
+    â”‚       â”œâ”€â”€ FileDropzone.tsx
+    â”‚       â””â”€â”€ AllergyBanner.tsx
+    â””â”€â”€ App.tsx                  â† REPLACE this file entirely
+scripts/
+â””â”€â”€ seed-firebase.ts
+.env                             â† You fill in Firebase keys
+.env.example                     â† Scaffold this with empty values
+```
+
+---
+
+## PART 4 â€” ENVIRONMENT SETUP
+
+Create `.env.example` (committed) and `.env` (not committed):
+
+```
+VITE_FIREBASE_API_KEY=
+VITE_FIREBASE_AUTH_DOMAIN=
+VITE_FIREBASE_PROJECT_ID=
+VITE_FIREBASE_STORAGE_BUCKET=
+VITE_FIREBASE_MESSAGING_SENDER_ID=
+VITE_FIREBASE_APP_ID=
+```
+
+**`src/lib/firebase.ts`:**
+```typescript
+import { initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
+
+const firebaseConfig = {
+  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId:             import.meta.env.VITE_FIREBASE_APP_ID,
+};
+
+export const app  = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+export const db   = getFirestore(app);
+export const storage = getStorage(app);
+```
+
+---
+
+## PART 5 â€” FIRESTORE DATA MODEL
+
+### Collection structure
+
+```
+/patients/{patientId}
+  /visits/{visitId}
+    /diagnoses/{diagnosisId}
+    /vitals/record              â† single doc
+    /complaints/{complaintId}
+    /prescriptionItems/{itemId}
+    /documents/{documentId}
+  /familyHistory/{rowId}
+  /clinicalHistory/record       â† single doc
+  /documents/{documentId}
+
+/appointments/{appointmentId}
+/invoices/{invoiceId}
+  /payments/{paymentId}
+/medicines/{medicineId}
+/users/{userId}                 â† same UID as Firebase Auth
+/auditLogs/{logId}
+/clinicSettings/{key}           â† key-value docs
+/sequences/patients             â† { current: 0, prefix: "ASK" }
+/sequences/invoices             â† { current: 0, year: 2026 }
+```
+
+### TypeScript interfaces (put in `src/types/index.ts`)
+
+```typescript
+import { Timestamp } from 'firebase/firestore';
+
+export type UserRole = 'ADMIN' | 'DOCTOR' | 'RECEPTIONIST';
+export type Sex = 'MALE' | 'FEMALE' | 'OTHER';
+export type PaymentStatus = 'PAID' | 'PENDING' | 'PARTIAL' | 'WAIVED';
+export type PaymentMethod = 'CASH' | 'UPI' | 'CARD' | 'INSURANCE' | 'CHEQUE' | 'ONLINE' | 'OTHER';
+export type DiagnosisType = 'FINAL' | 'PROVISIONAL' | 'DIFFERENTIAL';
+export type AppointmentStatus = 'BOOKED' | 'CONFIRMED' | 'WAITING' | 'IN_CONSULTATION' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
+export type AppointmentType = 'NEW_PATIENT' | 'FOLLOW_UP' | 'EMERGENCY' | 'CONSULTATION';
+export type MedicineCategory = 'PLANT' | 'MINERAL' | 'ANIMAL' | 'NOSODE' | 'BIOCHEMIC' | 'SARCODES' | 'IMPONDERABILIA' | 'OTHER';
+export type DocumentType = 'LAB_REPORT' | 'IMAGING' | 'PRESCRIPTION' | 'REFERRAL' | 'CONSENT' | 'OLD_RECORD' | 'INSURANCE' | 'OTHER';
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  isActive: boolean;
+  avatarUrl?: string;
+  signatureUrl?: string;
+  qualification?: string;
+  regNumber?: string;
+  phone?: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface Patient {
+  id: string;
+  patientRefId: string;
+  photoUrl?: string;
+  name: string;
+  dob?: string;
+  ageYears?: number;
+  sex: Sex;
+  bloodGroup: string;
+  maritalStatus?: string;
+  mobile: string;
+  whatsapp?: string;
+  email?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  guardianName?: string;
+  guardianRelation?: string;
+  idType?: string;
+  idNumber?: string;
+  occupation?: string;
+  referredBy?: string;
+  allergies: string[];
+  insuranceProvider?: string;
+  insurancePolicy?: string;
+  notes?: string;
+  isActive: boolean;
+  visitCount: number;
+  lastVisitDate?: string;
+  nextFollowUpDate?: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  deletedAt?: Timestamp;
+  createdBy: string;
+}
+
+export interface Visit {
+  id: string;
+  visitNumber: number;
+  patientId: string;
+  doctorId: string;
+  doctorName: string;
+  date: Timestamp;
+  isLocked: boolean;
+  isDraft: boolean;
+  consultationFee?: number;
+  medicineFee?: number;
+  discount?: number;
+  discountType?: 'flat' | 'percent';
+  totalFee?: number;
+  paymentStatus: PaymentStatus;
+  paymentMethod?: PaymentMethod;
+  paymentReference?: string;
+  paymentNotes?: string;
+  paidAmount?: number;
+  paidAt?: Timestamp;
+  labOrders?: string;
+  labNotes?: string;
+  followUpDays?: number;
+  followUpDate?: string;
+  followUpNotes?: string;
+  signatureUrl?: string;
+  visitNotes?: string;
+  prescriptionNotes?: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  deletedAt?: Timestamp;
+}
+
+export interface Diagnosis {
+  id: string;
+  type: DiagnosisType;
+  text: string;
+  icdCode?: string;
+  notes?: string;
+  sortOrder: number;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface Vitals {
+  heightCm?: number;
+  weightKg?: number;
+  bmi?: number;
+  bmiCategory?: string;
+  pulse?: number;
+  bpSystolic?: number;
+  bpDiastolic?: number;
+  temperatureValue?: number;
+  temperatureUnit: 'CELSIUS' | 'FAHRENHEIT';
+  spo2?: number;
+  respirationRate?: number;
+  updatedAt: Timestamp;
+}
+
+export interface Complaint {
+  id: string;
+  chiefComplaint: string;
+  duration?: string;
+  onset?: string;
+  severity?: number;
+  betterBy?: string;
+  worseBy?: string;
+  notes?: string;
+  sortOrder: number;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface PrescriptionItem {
+  id: string;
+  medicineId?: string;
+  medicineName: string;
+  potency?: string;
+  dosage?: string;
+  repetition?: string;
+  durationDays?: number;
+  beforeAfterFood?: string;
+  instructions?: string;
+  sortOrder: number;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface ClinicalHistory {
+  notes?: string;
+  pastIllnesses: string[];
+  surgeries?: string;
+  hospitalizations?: string;
+  currentMedicines?: string;
+  vaccinations?: string;
+  smokingStatus?: string;
+  alcoholStatus?: string;
+  sleepPattern?: string;
+  dietType?: string;
+  exerciseHabits?: string;
+  updatedAt: Timestamp;
+  updatedBy: string;
+}
+
+export interface FamilyHistoryRow {
+  id: string;
+  relation: string;
+  condition: string;
+  status?: string;
+  ageAtOnset?: number;
+  isDeceased: boolean;
+  remarks?: string;
+  sortOrder: number;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  deletedAt?: Timestamp;
+}
+
+export interface PatientDocument {
+  id: string;
+  patientId: string;
+  visitId?: string;
+  filename: string;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  storageUrl: string;
+  thumbnailUrl?: string;
+  type: DocumentType;
+  tag?: string;
+  notes?: string;
+  uploadedBy: string;
+  createdAt: Timestamp;
+  deletedAt?: Timestamp;
+}
+
+export interface Medicine {
+  id: string;
+  name: string;
+  manufacturer?: string;
+  category: MedicineCategory;
+  potencies: string[];
+  isActive: boolean;
+  notes?: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  deletedAt?: Timestamp;
+}
+
+export interface Appointment {
+  id: string;
+  patientId: string;
+  patientName: string;
+  patientRefId: string;
+  doctorId: string;
+  doctorName: string;
+  scheduledAt: Timestamp;
+  durationMins: number;
+  type: AppointmentType;
+  status: AppointmentStatus;
+  notes?: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  deletedAt?: Timestamp;
+}
+
+export interface Invoice {
+  id: string;
+  invoiceNumber: string;
+  patientId: string;
+  patientName: string;
+  patientRefId: string;
+  visitId?: string;
+  consultationFee: number;
+  medicineFee: number;
+  discount: number;
+  subtotal: number;
+  gstPercent: number;
+  gstAmount: number;
+  total: number;
+  amountPaid: number;
+  amountDue: number;
+  status: PaymentStatus;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface Payment {
+  id: string;
+  amount: number;
+  method: PaymentMethod;
+  reference?: string;
+  notes?: string;
+  paidAt: Timestamp;
+  recordedBy: string;
+}
+
+export interface AuditLog {
+  id: string;
+  userId: string;
+  userName: string;
+  action: string;
+  resource: string;
+  resourceId: string;
+  changes?: Record<string, { before: unknown; after: unknown }>;
+  createdAt: Timestamp;
+}
+```
+
+---
+
+## PART 6 â€” AUTH STORE & FIREBASE AUTH
+
+**`src/store/auth.store.ts`:**
+```typescript
+import { create } from 'zustand';
+import { signOut } from 'firebase/auth';
+import { auth } from '../lib/firebase';
+import type { UserProfile } from '../types';
+
+interface AuthStore {
+  user: UserProfile | null;
+  loading: boolean;
+  setUser: (user: UserProfile | null) => void;
+  setLoading: (loading: boolean) => void;
+  logout: () => Promise<void>;
+}
+
+export const useAuthStore = create<AuthStore>((set) => ({
+  user: null,
+  loading: true,
+  setUser: (user) => set({ user }),
+  setLoading: (loading) => set({ loading }),
+  logout: async () => {
+    await signOut(auth);
+    set({ user: null });
+  },
+}));
+```
+
+**`src/store/ui.store.ts`:**
+```typescript
+import { create } from 'zustand';
+
+interface UIStore {
+  commandPaletteOpen: boolean;
+  openCommandPalette: () => void;
+  closeCommandPalette: () => void;
+  recentSearches: string[];
+  addRecentSearch: (q: string) => void;
+}
+
+export const useUIStore = create<UIStore>((set) => ({
+  commandPaletteOpen: false,
+  openCommandPalette: () => set({ commandPaletteOpen: true }),
+  closeCommandPalette: () => set({ commandPaletteOpen: false }),
+  recentSearches: [],
+  addRecentSearch: (q) => set((s) => ({
+    recentSearches: [q, ...s.recentSearches.filter(r => r !== q)].slice(0, 5),
+  })),
+}));
+```
+
+**`src/lib/auth.ts`:**
+```typescript
+import {
+  signInWithEmailAndPassword,
+  onAuthStateChanged,
+  type User,
+} from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, db } from './firebase';
+import { useAuthStore } from '../store/auth.store';
+import type { UserProfile } from '../types';
+
+export async function loginUser(email: string, password: string): Promise<UserProfile> {
+  const credential = await signInWithEmailAndPassword(auth, email, password);
+  const profile = await fetchUserProfile(credential.user.uid);
+  return profile;
+}
+
+export async function fetchUserProfile(uid: string): Promise<UserProfile> {
+  const snap = await getDoc(doc(db, 'users', uid));
+  if (!snap.exists()) {
+    await auth.signOut();
+    throw new Error('Account not configured. Contact your administrator.');
+  }
+  return { id: snap.id, ...snap.data() } as UserProfile;
+}
+
+// Call this once at app root â€” listens for auth state changes
+export function initAuthListener(): () => void {
+  return onAuthStateChanged(auth, async (firebaseUser: User | null) => {
+    const { setUser, setLoading } = useAuthStore.getState();
+    if (firebaseUser) {
+      try {
+        const profile = await fetchUserProfile(firebaseUser.uid);
+        setUser(profile);
+      } catch {
+        setUser(null);
+      }
+    } else {
+      setUser(null);
+    }
+    setLoading(false);
+  });
+}
+```
+
+---
+
+## PART 7 â€” NEW App.tsx (REPLACE ENTIRELY)
+
+Replace `src/app/App.tsx` completely. Keep ALL the screen components, helper
+functions, atoms, palette P, and design intact. Only change:
+1. Replace the router from `useState<Screen>` to `react-router`
+2. Replace fake auth with real Firebase auth
+3. Remove hardcoded data arrays (PATIENTS, APPTS, MEDS_LIST, etc.)
+4. Connect pages to real Firebase data
+
+```tsx
+// src/app/App.tsx
+
+import React, { useEffect } from 'react';
+import {
+  createBrowserRouter,
+  RouterProvider,
+  Navigate,
+  Outlet,
+} from 'react-router';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from './components/ui/sonner';
+import { ThemeProvider } from 'next-themes';
+import { initAuthListener } from '../lib/auth';
+import { useAuthStore } from '../store/auth.store';
+
+// Pages
+import LoginPage from './pages/LoginPage';
+import DashboardPage from './pages/DashboardPage';
+import PatientsPage from './pages/PatientsPage';
+import NewPatientPage from './pages/NewPatientPage';
+import PatientProfilePage from './pages/PatientProfilePage';
+import NewVisitPage from './pages/NewVisitPage';
+import VisitDetailPage from './pages/VisitDetailPage';
+import AppointmentsPage from './pages/AppointmentsPage';
+import BillingPage from './pages/BillingPage';
+import MedicinesPage from './pages/MedicinesPage';
+import ReportsPage from './pages/ReportsPage';
+import SettingsPage from './pages/SettingsPage';
+
+// Layout
+import AppShell from './components/layout/AppShell';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { staleTime: 1000 * 60 * 5, retry: 1 },
+  },
+});
+
+function AuthGuard() {
+  const { user, loading } = useAuthStore();
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="text-sm text-muted-foreground">Loadingâ€¦</div>
+      </div>
+    );
+  }
+
+  if (!user) return <Navigate to="/login" replace />;
+  return <Outlet />;
+}
+
+const router = createBrowserRouter([
+  { path: '/login', element: <LoginPage /> },
+  {
+    element: <AuthGuard />,
+    children: [
+      {
+        element: <AppShell />,
+        children: [
+          { path: '/', element: <Navigate to="/dashboard" replace /> },
+          { path: '/dashboard', element: <DashboardPage /> },
+          { path: '/patients', element: <PatientsPage /> },
+          { path: '/patients/new', element: <NewPatientPage /> },
+          { path: '/patients/:patientId', element: <PatientProfilePage /> },
+          { path: '/patients/:patientId/visits/new', element: <NewVisitPage /> },
+          { path: '/patients/:patientId/visits/:visitId', element: <VisitDetailPage /> },
+          { path: '/appointments', element: <AppointmentsPage /> },
+          { path: '/billing', element: <BillingPage /> },
+          { path: '/medicines', element: <MedicinesPage /> },
+          { path: '/reports', element: <ReportsPage /> },
+          { path: '/settings', element: <SettingsPage /> },
+        ],
+      },
+    ],
+  },
+  { path: '*', element: <Navigate to="/login" replace /> },
+]);
+
+export default function App() {
+  useEffect(() => {
+    const unsubscribe = initAuthListener();
+    return unsubscribe;
+  }, []);
+
+  return (
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+        <Toaster richColors position="top-right" />
+      </QueryClientProvider>
+    </ThemeProvider>
+  );
+}
+```
+
+---
+
+## PART 8 â€” APPSHELL LAYOUT
+
+**`src/app/components/layout/AppShell.tsx`:**
+
+Take the existing `Sidebar` component and `TopBar` component from the App.tsx
+prototype EXACTLY as they are designed. Extract them into separate files.
+Replace `setScreen()` with `useNavigate()` from react-router.
+Replace `screen === "dashboard"` active state checks with `useLocation().pathname`.
+
+```tsx
+// AppShell.tsx
+import { Outlet, useNavigate, useLocation } from 'react-router';
+import { useEffect } from 'react';
+import { useUIStore } from '../../../store/ui.store';
+// Copy Sidebar and TopBar components from old App.tsx
+// Replace: onNavigate(s) â†’ navigate(`/${s}`)
+// Replace: screen === key â†’ location.pathname === `/${key}`
+// Add: useEffect for âŒ˜K keyboard shortcut â†’ openCommandPalette()
+
+export default function AppShell() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { openCommandPalette } = useUIStore();
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        openCommandPalette();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [openCommandPalette]);
+
+  return (
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+      <AppSidebar navigate={navigate} pathname={location.pathname} />
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <AppTopBar navigate={navigate} pathname={location.pathname} />
+        <main style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
+          <div style={{ maxWidth: 1120, margin: '0 auto' }}>
+            <Outlet />
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}
+```
+
+---
+
+## PART 9 â€” FIRESTORE SERVICE LAYER
+
+One file per domain. All Firestore calls go here. Never call Firestore directly
+from components. Components only call these services.
+
+**`src/lib/services/patients.service.ts`** â€” key functions:
+
+```typescript
+import {
+  collection, doc, getDoc, getDocs, addDoc, updateDoc,
+  query, where, orderBy, limit, startAfter, runTransaction,
+  serverTimestamp, DocumentSnapshot,
+} from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../firebase';
+import type { Patient } from '../../types';
+
+// Atomic patient ID generation â€” never use count()
+export async function generatePatientRefId(): Promise<string> {
+  const seqRef = doc(db, 'sequences', 'patients');
+  let newId = '';
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(seqRef);
+    const current = snap.exists() ? (snap.data().current as number) : 0;
+    const prefix = snap.exists() ? (snap.data().prefix as string) : 'ASK';
+    const next = current + 1;
+    tx.set(seqRef, { current: next, prefix }, { merge: true });
+    newId = `${prefix}-${String(next).padStart(4, '0')}`;
+  });
+  return newId;
+}
+
+export async function createPatient(
+  data: Omit<Patient, 'id' | 'createdAt' | 'updatedAt' | 'patientRefId' | 'visitCount'>,
+  createdBy: string,
+): Promise<Patient> {
+  const patientRefId = await generatePatientRefId();
+  const ref = await addDoc(collection(db, 'patients'), {
+    ...data,
+    patientRefId,
+    visitCount: 0,
+    isActive: true,
+    allergies: data.allergies ?? [],
+    createdBy,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  const snap = await getDoc(ref);
+  return { id: snap.id, ...snap.data() } as Patient;
+}
+
+export async function getPatient(patientId: string): Promise<Patient> {
+  const snap = await getDoc(doc(db, 'patients', patientId));
+  if (!snap.exists()) throw new Error('Patient not found');
+  return { id: snap.id, ...snap.data() } as Patient;
+}
+
+export async function updatePatient(
+  patientId: string,
+  data: Partial<Patient>,
+): Promise<void> {
+  await updateDoc(doc(db, 'patients', patientId), {
+    ...data,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function softDeletePatient(patientId: string): Promise<void> {
+  await updateDoc(doc(db, 'patients', patientId), {
+    deletedAt: serverTimestamp(),
+    isActive: false,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function listPatients(opts: {
+  search?: string;
+  status?: string;
+  pageSize?: number;
+  lastDoc?: DocumentSnapshot;
+}): Promise<{ patients: Patient[]; lastDoc: DocumentSnapshot | null }> {
+  let q = query(
+    collection(db, 'patients'),
+    where('deletedAt', '==', null),
+    orderBy('name'),
+    limit(opts.pageSize ?? 25),
+  );
+  if (opts.lastDoc) q = query(q, startAfter(opts.lastDoc));
+  const snap = await getDocs(q);
+  const patients = snap.docs.map(d => ({ id: d.id, ...d.data() } as Patient));
+  // Filter by search client-side (Firestore prefix search has limitations)
+  const filtered = opts.search
+    ? patients.filter(p =>
+        p.name.toLowerCase().includes(opts.search!.toLowerCase()) ||
+        p.mobile.includes(opts.search!) ||
+        p.patientRefId.toLowerCase().includes(opts.search!.toLowerCase()),
+      )
+    : patients;
+  return {
+    patients: filtered,
+    lastDoc: snap.docs[snap.docs.length - 1] ?? null,
+  };
+}
+
+export async function searchPatients(q: string): Promise<Patient[]> {
+  // Prefix search by name
+  const snap = await getDocs(
+    query(
+      collection(db, 'patients'),
+      where('deletedAt', '==', null),
+      where('name', '>=', q),
+      where('name', '<=', q + '\uf8ff'),
+      limit(8),
+    ),
+  );
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as Patient));
+}
+
+export async function uploadPatientPhoto(
+  patientId: string,
+  file: File,
+): Promise<string> {
+  const ext = file.name.split('.').pop();
+  const storageRef = ref(storage, `patients/${patientId}/photo.${ext}`);
+  await uploadBytes(storageRef, file);
+  const url = await getDownloadURL(storageRef);
+  await updateDoc(doc(db, 'patients', patientId), { photoUrl: url });
+  return url;
+}
+```
+
+**`src/lib/services/visits.service.ts`** â€” key functions:
+
+```typescript
+// Visit number generation â€” MUST be inside a transaction
+export async function createVisit(
+  patientId: string,
+  doctorId: string,
+  doctorName: string,
+): Promise<Visit> {
+  const visitsRef = collection(db, 'patients', patientId, 'visits');
+  let newVisit!: Visit;
+
+  await runTransaction(db, async (tx) => {
+    // Get highest visitNumber for this patient
+    const q = query(visitsRef, orderBy('visitNumber', 'desc'), limit(1));
+    const snap = await getDocs(q);
+    const lastNum = snap.empty ? 0 : (snap.docs[0].data().visitNumber as number);
+
+    const visitRef = doc(visitsRef);
+    const visitData = {
+      visitNumber: lastNum + 1,
+      patientId,
+      doctorId,
+      doctorName,
+      date: serverTimestamp(),
+      isLocked: false,
+      isDraft: true,
+      paymentStatus: 'PENDING' as const,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+    tx.set(visitRef, visitData);
+    newVisit = { id: visitRef.id, ...visitData } as unknown as Visit;
+  });
+
+  return newVisit;
+}
+
+export async function getVisit(
+  patientId: string,
+  visitId: string,
+): Promise<Visit> {
+  const snap = await getDoc(doc(db, 'patients', patientId, 'visits', visitId));
+  if (!snap.exists()) throw new Error('Visit not found');
+
+  // Auto-lock check
+  const visit = { id: snap.id, ...snap.data() } as Visit;
+  if (!visit.isLocked && visit.createdAt) {
+    const hoursSince = (Date.now() - visit.createdAt.toMillis()) / 3_600_000;
+    if (hoursSince >= 24) {
+      await updateDoc(snap.ref, { isLocked: true });
+      visit.isLocked = true;
+    }
+  }
+  return visit;
+}
+
+export async function updateVisit(
+  patientId: string,
+  visitId: string,
+  data: Partial<Visit>,
+): Promise<void> {
+  await updateDoc(
+    doc(db, 'patients', patientId, 'visits', visitId),
+    { ...data, updatedAt: serverTimestamp() },
+  );
+}
+
+export async function listVisits(patientId: string): Promise<Visit[]> {
+  const snap = await getDocs(
+    query(
+      collection(db, 'patients', patientId, 'visits'),
+      where('deletedAt', '==', null),
+      orderBy('visitNumber', 'desc'),
+    ),
+  );
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as Visit));
+}
+
+export async function saveVisit(
+  patientId: string,
+  visitId: string,
+  data: Partial<Visit>,
+): Promise<void> {
+  // Mark as no longer draft
+  await updateVisit(patientId, visitId, { ...data, isDraft: false });
+
+  // Update patient denormalised fields
+  await updateDoc(doc(db, 'patients', patientId), {
+    lastVisitDate: new Date().toISOString().split('T')[0],
+    nextFollowUpDate: data.followUpDate ?? null,
+    updatedAt: serverTimestamp(),
+  });
+
+  // Auto-create or update invoice if fee exists
+  if (data.totalFee && data.totalFee > 0) {
+    await upsertInvoiceForVisit(patientId, visitId, data);
+  }
+}
+
+export async function repeatLastPrescription(
+  patientId: string,
+  targetVisitId: string,
+): Promise<void> {
+  // Find all visits ordered by number desc
+  const visits = await listVisits(patientId);
+  const previousVisit = visits.find(v => v.id !== targetVisitId);
+  if (!previousVisit) return;
+
+  // Get prescription items from previous visit
+  const snap = await getDocs(
+    collection(db, 'patients', patientId, 'visits', previousVisit.id, 'prescriptionItems'),
+  );
+
+  // Add them to target visit
+  const batch = [];
+  for (const d of snap.docs) {
+    const item = d.data();
+    batch.push(
+      addDoc(
+        collection(db, 'patients', patientId, 'visits', targetVisitId, 'prescriptionItems'),
+        { ...item, id: undefined, createdAt: serverTimestamp(), updatedAt: serverTimestamp() },
+      ),
+    );
+  }
+  await Promise.all(batch);
+}
+
+export async function saveSignature(
+  patientId: string,
+  visitId: string,
+  dataUrl: string,
+): Promise<string> {
+  // Convert base64 data URL to blob
+  const res = await fetch(dataUrl);
+  const blob = await res.blob();
+  const storageRef = ref(storage, `patients/${patientId}/visits/${visitId}/signature.png`);
+  await uploadBytes(storageRef, blob);
+  const url = await getDownloadURL(storageRef);
+  await updateVisit(patientId, visitId, { signatureUrl: url });
+  return url;
+}
+```
+
+**`src/lib/services/diagnoses.service.ts`:**
+```typescript
+// Multiple diagnoses per visit â€” each is its own Firestore document
+
+export async function addDiagnosis(
+  patientId: string,
+  visitId: string,
+  data: Omit<Diagnosis, 'id' | 'createdAt' | 'updatedAt'>,
+): Promise<Diagnosis>
+
+export async function updateDiagnosis(
+  patientId: string,
+  visitId: string,
+  diagnosisId: string,
+  data: Partial<Diagnosis>,
+): Promise<void>
+
+export async function deleteDiagnosis(
+  patientId: string,
+  visitId: string,
+  diagnosisId: string,
+): Promise<void>
+
+export async function listDiagnoses(
+  patientId: string,
+  visitId: string,
+): Promise<Diagnosis[]>
+// Returns sorted by sortOrder asc
+```
+
+**`src/lib/services/medicines.service.ts`:**
+```typescript
+export async function searchMedicines(
+  q: string,
+): Promise<{ id: string; name: string; potencies: string[] }[]> {
+  const snap = await getDocs(
+    query(
+      collection(db, 'medicines'),
+      where('isActive', '==', true),
+      where('name', '>=', q),
+      where('name', '<=', q + '\uf8ff'),
+      limit(8),
+    ),
+  );
+  return snap.docs.map(d => ({
+    id: d.id,
+    name: d.data().name,
+    potencies: d.data().potencies,
+  }));
+}
+```
+
+**`src/lib/services/invoices.service.ts`:**
+```typescript
+// Invoice number uses same atomic sequence pattern as patient ID
+export async function generateInvoiceNumber(): Promise<string> {
+  const seqRef = doc(db, 'sequences', 'invoices');
+  let invoiceNumber = '';
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(seqRef);
+    const year = new Date().getFullYear();
+    const storedYear = snap.exists() ? snap.data().year : year;
+    const current = snap.exists() && storedYear === year ? snap.data().current : 0;
+    const next = current + 1;
+    tx.set(seqRef, { current: next, year }, { merge: true });
+    invoiceNumber = `INV-${year}-${String(next).padStart(4, '0')}`;
+  });
+  return invoiceNumber;
+}
+
+// upsertInvoiceForVisit â€” never creates duplicate invoices for same visitId
+export async function upsertInvoiceForVisit(
+  patientId: string,
+  visitId: string,
+  visitData: Partial<Visit>,
+): Promise<void>
+
+// recordPayment â€” adds payment subcollection doc and recalculates invoice totals
+export async function recordPayment(
+  invoiceId: string,
+  payment: Omit<Payment, 'id'>,
+): Promise<void>
+```
+
+**`src/lib/services/reports.service.ts`:**
+```typescript
+// All aggregate from Firestore queries
+export async function getFollowUpAlerts(): Promise<{
+  overdue: Patient[];
+  dueSoon: Patient[];
+}> {
+  const today = new Date().toISOString().split('T')[0];
+  const sevenDaysLater = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
+
+  const [overdueSnap, dueSoonSnap] = await Promise.all([
+    getDocs(query(
+      collection(db, 'patients'),
+      where('deletedAt', '==', null),
+      where('nextFollowUpDate', '<', today),
+    )),
+    getDocs(query(
+      collection(db, 'patients'),
+      where('deletedAt', '==', null),
+      where('nextFollowUpDate', '>=', today),
+      where('nextFollowUpDate', '<=', sevenDaysLater),
+    )),
+  ]);
+
+  return {
+    overdue: overdueSnap.docs.map(d => ({ id: d.id, ...d.data() } as Patient)),
+    dueSoon: dueSoonSnap.docs.map(d => ({ id: d.id, ...d.data() } as Patient)),
+  };
+}
+```
+
+**Implement all other services fully:** documents.service.ts (Firebase Storage upload
+with progress), appointments.service.ts, users.service.ts, settings.service.ts,
+audit.service.ts (async, never blocks main operation), vitals.service.ts,
+complaints.service.ts, prescriptions.service.ts.
+
+---
+
+## PART 10 â€” PAGE IMPLEMENTATIONS
+
+Each page is a refactored version of the matching screen component from the original
+App.tsx. Take the exact visual layout, replace hardcoded data with Firebase calls.
+
+**Golden rule for every page:**
+- Copy the exact JSX structure from the original App.tsx screen component
+- Replace hardcoded arrays with `useQuery()` hooks calling the service layer
+- Replace `onNavigate(screen)` with `useNavigate()`
+- Show `Skeleton` components while loading (use existing `skeleton.tsx`)
+- Show descriptive `toast.error()` on any Firebase error
+- Show empty states when collections are empty
+
+---
+
+### LoginPage.tsx
+
+Extract `LoginScreen` from App.tsx exactly as designed. Replace `onLogin()`:
+
+```typescript
+async function handleLogin(email: string, password: string) {
+  try {
+    const profile = await loginUser(email, password);
+    setUser(profile);
+    navigate('/dashboard');
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Sign in failed';
+    if (msg.includes('not configured')) {
+      toast.error(msg);
+    } else {
+      toast.error('Invalid email or password');
+    }
+  }
+}
+```
+
+---
+
+### DashboardPage.tsx
+
+Extract `DashboardScreen`. Replace all PATIENTS/APPTS references:
+
+```typescript
+const { data: followUps } = useQuery({
+  queryKey: ['reports', 'followups'],
+  queryFn: getFollowUpAlerts,
+});
+
+const { data: todayAppointments } = useQuery({
+  queryKey: ['appointments', 'today'],
+  queryFn: () => listAppointments({
+    from: startOfDay(new Date()),
+    to: endOfDay(new Date()),
+  }),
+});
+```
+
+Show `Skeleton` in each card section while loading.
+Charts: when no data yet, show empty state text inside the chart container.
+
+---
+
+### PatientsPage.tsx
+
+Extract `PatientListScreen`. Replace PATIENTS array:
+
+```typescript
+const [search, setSearch] = useState('');
+const [lastDoc, setLastDoc] = useState<DocumentSnapshot | null>(null);
+
+const { data, isLoading } = useQuery({
+  queryKey: ['patients', search, filter],
+  queryFn: () => listPatients({ search, status: filter, lastDoc: undefined }),
+  keepPreviousData: true,
+});
+```
+
+Debounce search input 400ms before updating queryKey.
+Pagination: Firestore cursor-based with `startAfter(lastDoc)`.
+Row click: `navigate(\`/patients/${patient.id}\`)`.
+
+---
+
+### NewPatientPage.tsx
+
+Extract `NewPatientScreen`. Wire the save button:
+
+```typescript
+async function handleSubmit(formData: CreatePatientInput) {
+  try {
+    const patient = await createPatient(formData, currentUser!.uid);
+    if (photoFile) {
+      await uploadPatientPhoto(patient.id, photoFile);
+    }
+    await writeAuditLog({
+      userId: currentUser!.uid,
+      userName: currentUser!.name,
+      action: 'CREATE',
+      resource: 'Patient',
+      resourceId: patient.id,
+    });
+    toast.success('Patient registered');
+    navigate(`/patients/${patient.id}`);
+  } catch (err) {
+    toast.error('Failed to save patient. Check your connection.');
+  }
+}
+```
+
+PatientRefId field: shows "Will be auto-generated" until save, then shows the value.
+
+---
+
+### PatientProfilePage.tsx
+
+Extract `PatientProfileScreen`. Load patient from Firestore:
+
+```typescript
+const { patientId } = useParams();
+const { data: patient, isLoading } = useQuery({
+  queryKey: ['patients', patientId],
+  queryFn: () => getPatient(patientId!),
+});
+```
+
+Visits tab: `listVisits(patientId)` â€” show all, no pagination.
+Prescriptions tab: collectionGroup query on prescriptionItems.
+Documents tab: Firebase Storage links, upload via `FileDropzone`.
+Billing tab: `listInvoices({ patientId })`.
+
+---
+
+### NewVisitPage.tsx
+
+This is the most critical page. Extract `NewVisitScreen`.
+
+**On page load:**
+```typescript
+const { patientId } = useParams();
+const searchParams = useSearchParams();
+const repeatFrom = searchParams.get('repeatFrom');
+
+useEffect(() => {
+  async function initVisit() {
+    const visit = await createVisit(patientId!, currentUser!.uid, currentUser!.name);
+    setVisitId(visit.id);
+    if (repeatFrom) {
+      await repeatLastPrescription(patientId!, visit.id);
+    }
+  }
+  initVisit();
+}, []);
+```
+
+**Autosave:** debounce 3 seconds on any field change.
+```typescript
+const debouncedSave = useMemo(
+  () => debounce(async (data: Partial<Visit>) => {
+    setSaveState('saving');
+    await updateVisit(patientId!, visitId!, data);
+    setSaveState('saved');
+    setSaveTime(new Date());
+  }, 3000),
+  [patientId, visitId],
+);
+```
+
+Show "Savingâ€¦" during save, "Saved 5s ago" after. Update every second.
+
+**Diagnoses card â€” multiple diagnoses:**
+```typescript
+// useFieldArray with field "diagnoses"
+// Each row: [Type Select: FINAL/PROVISIONAL/DIFFERENTIAL] [Text Input] [Remove Ã—]
+// On blur of text input: addDiagnosis() or updateDiagnosis() to Firestore
+// Remove: deleteDiagnosis() immediately
+// "+ Add diagnosis" button adds new empty row
+// Default: one row with type PROVISIONAL
+```
+
+**Payment section on Fee card:**
+```typescript
+// Payment method Select with all 7 options: Cash/UPI/Card/Insurance/Cheque/Online/Other
+// Reference field: shown only when method !== 'CASH'
+// Label changes based on method:
+//   UPI â†’ "UPI Reference No."
+//   CHEQUE â†’ "Cheque Number"
+//   CARD â†’ "Last 4 digits"
+//   INSURANCE â†’ "Claim Number"
+//   ONLINE â†’ "Transaction ID"
+// Amount paid Input: pre-filled with total, editable
+// Payment status Badge: auto-computed:
+//   paidAmount >= total â†’ PAID (primary/sage badge)
+//   0 < paidAmount < total â†’ PARTIAL (secondary badge + "â‚¹X remaining")
+//   paidAmount == 0 â†’ PENDING (destructive badge)
+```
+
+**Vitals sparkline for returning patients:**
+```typescript
+// If visitNumber > 1: fetch last 5 vitals for this patient
+// const { data: historicalVitals } = useQuery({
+//   queryKey: ['vitals', 'history', patientId],
+//   queryFn: () => getLastFiveVitals(patientId!),
+//   enabled: visitNumber > 1,
+// });
+// Render mini sparkline under BMI and BP boxes using the existing sparkline
+// SVG code from App.tsx prototype (the miniSparkline function)
+```
+
+**Medicine autocomplete:**
+```typescript
+const [medicineQuery, setMedicineQuery] = useState('');
+const { data: medicineResults } = useQuery({
+  queryKey: ['medicines', 'search', medicineQuery],
+  queryFn: () => searchMedicines(medicineQuery),
+  enabled: medicineQuery.length >= 2,
+  staleTime: 30_000,
+});
+// Show results in a popover under the medicine input
+// On select: set medicineName and populate potency Select with that medicine's potencies[]
+```
+
+**Save visit button:**
+```typescript
+async function handleSaveVisit() {
+  // Validate: at least one diagnosis with text
+  const finalData = getValues();
+  await saveVisit(patientId!, visitId!, finalData);
+  await writeAuditLog({ action: 'CREATE', resource: 'Visit', resourceId: visitId! });
+  toast.success('Visit saved');
+  navigate(`/patients/${patientId}`);
+}
+```
+
+**Signature pad:** Use `SignaturePad` component (canvas-based). On confirm:
+call `saveSignature(patientId!, visitId!, dataUrl)`.
+
+**Allergy banner:** Show `AllergyBanner` at top of form if `patient.allergies.length > 0`.
+Non-dismissible until doctor clicks "Acknowledged". Store acknowledgment in session
+(Zustand, keyed by visitId) â€” not in Firebase.
+
+**Warn on navigation away:** if form is dirty, show `AlertDialog` before navigating.
+
+---
+
+### VisitDetailPage.tsx
+
+Same layout as NewVisitPage but all fields are `readOnly`.
+Load visit data from Firestore.
+Check `isLocked` â€” show `Alert` info if locked.
+"Edit visit" button â€” enabled only if not locked and user is DOCTOR or ADMIN.
+"Admin override unlock" â€” ADMIN only â€” calls `updateVisit(patientId, visitId, { isLocked: false })`.
+"Print prescription" button â€” calls `generatePrescriptionPDF()`.
+
+---
+
+### AppointmentsPage.tsx
+
+Extract `AppointmentsScreen`. Replace APPTS:
+
+```typescript
+const [weekStart, weekEnd] = getWeekRange(currentWeek);
+const { data: appointments } = useQuery({
+  queryKey: ['appointments', weekStart.toISOString()],
+  queryFn: () => listAppointments({ from: weekStart, to: weekEnd }),
+});
+```
+
+Calendar grid: group appointments by date and time.
+Click empty slot: open new appointment Sheet.
+Click booked slot: open appointment detail Sheet.
+Status update: `updateAppointment(id, { status: newStatus })`.
+
+---
+
+### BillingPage.tsx
+
+Extract `BillingScreen`. Replace INVOICES:
+
+```typescript
+const { data: invoices } = useQuery({
+  queryKey: ['invoices', statusFilter],
+  queryFn: () => listInvoices({ status: statusFilter }),
+});
+```
+
+"Record payment" Sheet: `recordPayment(invoiceId, { amount, method, reference })`.
+Print PDF: `generateInvoicePDF(invoice)` â†’ `jspdf`.
+WhatsApp: `window.open('https://wa.me/91${phone}?text=${summary}')`.
+
+---
+
+### MedicinesPage.tsx
+
+Extract `MedicineScreen`. Replace MEDS_LIST:
+
+```typescript
+const { data: medicines } = useQuery({
+  queryKey: ['medicines', catFilter, search],
+  queryFn: () => listMedicines({ category: catFilter, activeOnly: false }),
+});
+```
+
+"Add medicine" Sheet: `createMedicine(data)`.
+Active toggle: `updateMedicine(id, { isActive: !current })`.
+
+---
+
+### ReportsPage.tsx
+
+Extract `ReportsScreen`. Replace WEEKLY_DATA, DISEASE_DATA, REVENUE_DATA:
+
+```typescript
+const { data: patientStats } = useQuery({
+  queryKey: ['reports', 'patients', period],
+  queryFn: () => getPatientStats(period),
+});
+const { data: revenueStats } = useQuery({
+  queryKey: ['reports', 'revenue', period],
+  queryFn: () => getRevenueStats(period),
+});
+const { data: topMedicines } = useQuery({
+  queryKey: ['reports', 'medicines', period],
+  queryFn: () => getTopMedicines(period),
+});
+```
+
+Charts: use Recharts with real data. Show skeleton bars while loading.
+Follow-ups tab: `getFollowUpAlerts()`.
+
+---
+
+### SettingsPage.tsx
+
+Extract `SettingsScreen`. Replace hardcoded values:
+
+```typescript
+const { data: settings } = useQuery({
+  queryKey: ['clinicSettings'],
+  queryFn: getClinicSettings,
+});
+
+async function handleSaveSettings(key: string, value: string) {
+  await setClinicSetting(key, value);
+  queryClient.invalidateQueries({ queryKey: ['clinicSettings'] });
+  toast.success('Settings saved');
+}
+```
+
+Users tab (admin only): `listUsers()` + "Add user" creates Firebase Auth user
+AND writes `/users/{uid}` doc.
+
+Dark mode toggle: `setTheme()` from next-themes.
+
+---
+
+## PART 11 â€” CUSTOM COMPONENTS
+
+**`src/app/components/common/TagInput.tsx`:**
+```typescript
+// Type text â†’ press Enter or comma â†’ adds tag pill
+// Pill: inline-flex, sienna-light bg for allergies, secondary for others
+// Ã— button removes tag
+// Backspace on empty input removes last tag
+interface TagInputProps {
+  value: string[];
+  onChange: (tags: string[]) => void;
+  placeholder?: string;
+  variant?: 'default' | 'allergy'; // allergy = sienna colour
+}
+```
+
+**`src/app/components/visits/SignaturePad.tsx`:**
+```typescript
+// HTML5 Canvas â€” smooth bezier curves using quadratic curves
+// mouse + touch events
+// "Clear" button
+// "Confirm" button â†’ canvas.toDataURL() â†’ onConfirm(dataUrl)
+// "Use saved signature" â†’ loads doctor's signatureUrl from auth store
+// Canvas: full width, 100px height, dashed border when empty
+interface SignaturePadProps {
+  onConfirm: (dataUrl: string) => void;
+  defaultUrl?: string;
+}
+```
+
+**`src/app/components/common/AllergyBanner.tsx`:**
+```typescript
+// Shows when patient has allergies
+// Uses existing Alert component with destructive variant
+// "Acknowledged" button â†’ sets acknowledged in Zustand for this visitId
+// After acknowledged: collapses to small chip
+interface AllergyBannerProps {
+  allergies: string[];
+  visitId: string;
+}
+```
+
+**`src/app/components/common/FileDropzone.tsx`:**
+```typescript
+// Drag-drop zone + click to browse
+// Shows Firebase Storage upload progress bar (uploadBytesResumable)
+// File preview thumbnails (image) or icon (PDF)
+// Error if wrong type or > maxSizeMB
+interface FileDropzoneProps {
+  onUpload: (urls: string[]) => Promise<void>;
+  patientId: string;
+  visitId?: string;
+  type: DocumentType;
+  accept?: string; // default: 'image/jpeg,image/png,application/pdf'
+  maxSizeMB?: number; // default: 10
+}
+```
+
+---
+
+## PART 12 â€” PDF GENERATION (jspdf, client-side)
+
+**`src/lib/pdf/prescription.ts`:**
+```typescript
+import jsPDF from 'jspdf';
+import { format } from 'date-fns';
+
+export async function generatePrescriptionPDF(params: {
+  patient: Patient;
+  visit: Visit;
+  diagnoses: Diagnosis[];
+  prescriptionItems: PrescriptionItem[];
+  doctor: UserProfile;
+  clinicSettings: Record<string, string>;
+}): Promise<void> {
+  const { patient, visit, diagnoses, prescriptionItems, doctor, clinicSettings } = params;
+  const pdf = new jsPDF({ format: 'a4', unit: 'mm' });
+
+  // Clinic header
+  pdf.setFontSize(14).setFont('helvetica', 'bold');
+  pdf.text(clinicSettings.clinicName ?? 'Asoka Homoeopathic Medical Centre', 105, 18, { align: 'center' });
+  pdf.setFontSize(9).setFont('helvetica', 'normal');
+  pdf.text(clinicSettings.clinicAddress ?? '', 105, 24, { align: 'center' });
+  pdf.text(`Ph: ${clinicSettings.clinicPhone ?? ''}  GST: ${clinicSettings.clinicGST ?? '-'}`, 105, 29, { align: 'center' });
+  pdf.line(15, 32, 195, 32);
+
+  // Patient info
+  pdf.setFontSize(10);
+  pdf.text(`Patient: ${patient.name}`, 15, 39);
+  pdf.text(`ID: ${patient.patientRefId}`, 140, 39);
+  pdf.text(`Age/Sex: ${patient.ageYears ?? '-'} / ${patient.sex.charAt(0)}`, 15, 45);
+  pdf.text(`Date: ${format(visit.date.toDate(), 'dd MMM yyyy')}`, 140, 45);
+  pdf.text(`Visit #${visit.visitNumber}`, 182, 45);
+
+  // Allergy warning
+  if (patient.allergies.length > 0) {
+    pdf.setFontSize(9).setFont('helvetica', 'bold');
+    pdf.setTextColor(192, 71, 43);
+    pdf.text(`âš  ALLERGIES: ${patient.allergies.join(', ')}`, 15, 51);
+    pdf.setTextColor(0, 0, 0);
+  }
+  pdf.line(15, 54, 195, 54);
+
+  // Diagnoses
+  const finalDx = diagnoses.filter(d => d.type === 'FINAL').map(d => d.text).join(', ');
+  const provDx = diagnoses.filter(d => d.type === 'PROVISIONAL').map(d => d.text).join(', ');
+  pdf.setFontSize(10).setFont('helvetica', 'bold');
+  pdf.text(`Diagnosis: ${finalDx || provDx || '-'}`, 15, 61);
+  if (finalDx && provDx) {
+    pdf.setFont('helvetica', 'normal').setFontSize(9);
+    pdf.text(`Provisional: ${provDx}`, 15, 67);
+  }
+  pdf.line(15, 70, 195, 70);
+
+  // Rx
+  pdf.setFontSize(13).setFont('helvetica', 'bold');
+  pdf.text('â„ž', 15, 78);
+  let y = 85;
+  for (const [i, item] of prescriptionItems.entries()) {
+    pdf.setFontSize(11).setFont('helvetica', 'bold');
+    pdf.text(`${i + 1}. ${item.medicineName}  ${item.potency ?? ''}`, 18, y);
+    y += 5;
+    pdf.setFontSize(9).setFont('helvetica', 'normal');
+    const details = [item.dosage, item.repetition,
+      item.durationDays ? `for ${item.durationDays} days` : null,
+      item.beforeAfterFood?.toLowerCase().replace('_', ' ') ?? null,
+    ].filter(Boolean).join(' Â· ');
+    pdf.text(`   ${details}`, 18, y);
+    if (item.instructions) { y += 4; pdf.text(`   ${item.instructions}`, 18, y); }
+    y += 6;
+    if (y > 250) { pdf.addPage(); y = 20; }
+  }
+
+  // Notes
+  if (visit.prescriptionNotes) {
+    pdf.line(15, y, 195, y); y += 5;
+    pdf.setFontSize(9).setFont('helvetica', 'normal');
+    pdf.text(`Notes: ${visit.prescriptionNotes}`, 15, y); y += 5;
+  }
+
+  // Follow-up
+  if (visit.followUpDate) {
+    pdf.line(15, y, 195, y); y += 5;
+    pdf.setFontSize(9).setFont('helvetica', 'bold');
+    pdf.text(`Follow-up: Return after ${visit.followUpDays} days (${visit.followUpDate})`, 15, y);
+    y += 10;
+  }
+
+  // Signature
+  pdf.line(15, y, 195, y); y += 8;
+  if (visit.signatureUrl) {
+    try {
+      const res = await fetch(visit.signatureUrl);
+      const blob = await res.blob();
+      const dataUrl = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.readAsDataURL(blob);
+      });
+      pdf.addImage(dataUrl, 'PNG', 130, y, 55, 18);
+    } catch { /* signature image failed to load, skip */ }
+  }
+  pdf.setFontSize(10).setFont('helvetica', 'bold');
+  pdf.text(`Dr. ${doctor.name}`, 130, y + 22);
+  pdf.setFontSize(8).setFont('helvetica', 'normal');
+  if (doctor.qualification) pdf.text(doctor.qualification, 130, y + 27);
+  if (doctor.regNumber) pdf.text(`Reg. ${doctor.regNumber}`, 130, y + 32);
+
+  pdf.save(`prescription-${patient.patientRefId}-v${visit.visitNumber}.pdf`);
+}
+```
+
+---
+
+## PART 13 â€” FIRESTORE SECURITY RULES
+
+Create `firestore.rules` in project root:
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuth() { return request.auth != null; }
+    function role() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+    function isAdmin()        { return isAuth() && role() == 'ADMIN'; }
+    function isDoctor()       { return isAuth() && role() == 'DOCTOR'; }
+    function isReceptionist() { return isAuth() && role() == 'RECEPTIONIST'; }
+    function isClinical()     { return isAdmin() || isDoctor(); }
+
+    // Users
+    match /users/{uid} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+      allow update: if request.auth.uid == uid;
+    }
+
+    // Patients â€” all roles can read demographics, only clinical can write
+    match /patients/{patientId} {
+      allow read: if isAuth();
+      allow create, update: if isAuth();
+      allow delete: if false; // soft delete only
+
+      // Visits â€” receptionist cannot access
+      match /visits/{visitId} {
+        allow read, write: if isClinical();
+
+        match /diagnoses/{id}     { allow read, write: if isClinical(); }
+        match /vitals/{id}        { allow read, write: if isClinical(); }
+        match /complaints/{id}    { allow read, write: if isClinical(); }
+        match /prescriptionItems/{id} { allow read, write: if isClinical(); }
+        match /documents/{id}     { allow read, write: if isAuth(); }
+      }
+
+      // Clinical history â€” clinical roles only
+      match /clinicalHistory/{id} { allow read, write: if isClinical(); }
+      match /familyHistory/{id}   { allow read, write: if isClinical(); }
+
+      // Patient-level documents â€” all roles
+      match /documents/{id} { allow read, write: if isAuth(); }
+    }
+
+    // Appointments â€” all roles
+    match /appointments/{id} {
+      allow read, write: if isAuth();
+    }
+
+    // Invoices â€” all roles
+    match /invoices/{id} {
+      allow read, write: if isAuth();
+      match /payments/{id} { allow read, write: if isAuth(); }
+    }
+
+    // Medicines â€” all roles read, only clinical write
+    match /medicines/{id} {
+      allow read: if isAuth();
+      allow write: if isClinical();
+    }
+
+    // Audit logs â€” admin read only, any write
+    match /auditLogs/{id} {
+      allow read: if isAdmin();
+      allow create: if isAuth();
+    }
+
+    // Settings â€” admin write, all read
+    match /clinicSettings/{key} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+
+    // Sequences â€” only transactional writes allowed
+    match /sequences/{id} {
+      allow read: if isAuth();
+      allow write: if isAuth();
+    }
+  }
+}
+```
+
+---
+
+## PART 14 â€” SEED SCRIPT
+
+**`scripts/seed-firebase.ts`** â€” run with `pnpm seed` after setting
+`GOOGLE_APPLICATION_CREDENTIALS` env var to your service account JSON path.
+
+```typescript
+import * as admin from 'firebase-admin';
+
+admin.initializeApp({
+  credential: admin.credential.applicationDefault(),
+});
+
+const db = admin.firestore();
+const auth = admin.auth();
+
+async function seed() {
+  console.log('Seeding Asoka HMS...');
+
+  // 1. Sequences
+  await db.doc('sequences/patients').set({ current: 0, prefix: 'ASK' });
+  await db.doc('sequences/invoices').set({ current: 0, year: 2026 });
+  console.log('âœ“ Sequences');
+
+  // 2. Clinic settings
+  const settings = {
+    clinicName: 'Asoka Homoeopathic Medical Centre',
+    clinicAddress: 'Bengaluru, Karnataka, India',
+    clinicPhone: '+91 XXXXX XXXXX',
+    clinicGST: '',
+    prescriptionHeader: '',
+    invoiceFooter: '',
+    defaultFollowUpDays: '30',
+    patientIdPrefix: 'ASK',
+  };
+  for (const [key, value] of Object.entries(settings)) {
+    await db.doc(`clinicSettings/${key}`).set({ value });
+  }
+  console.log('âœ“ Clinic settings');
+
+  // 3. Users
+  const users = [
+    { email: 'admin@asoka.clinic', password: 'Admin@1234', name: 'Admin', role: 'ADMIN' },
+    {
+      email: 'sharma@asoka.clinic', password: 'Doctor@1234',
+      name: 'Dr. Priya Sharma', role: 'DOCTOR',
+      qualification: 'BHMS, MD (Hom.)', regNumber: 'KMC-2019-0842',
+    },
+    { email: 'front@asoka.clinic', password: 'Recept@1234', name: 'Lakshmi Nair', role: 'RECEPTIONIST' },
+  ];
+
+  for (const u of users) {
+    let uid: string;
+    try {
+      const existing = await auth.getUserByEmail(u.email);
+      uid = existing.uid;
+    } catch {
+      const created = await auth.createUser({ email: u.email, password: u.password, displayName: u.name });
+      uid = created.uid;
+    }
+    await db.doc(`users/${uid}`).set({
+      email: u.email,
+      name: u.name,
+      role: u.role,
+      isActive: true,
+      qualification: u.qualification ?? null,
+      regNumber: u.regNumber ?? null,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    console.log(`âœ“ User: ${u.email}`);
+  }
+
+  // 4. Medicines (35 common homeopathic medicines)
+  const medicines = [
+    { name: 'Arnica Montana', mfr: 'SBL', cat: 'PLANT' },
+    { name: 'Belladonna', mfr: 'SBL', cat: 'PLANT' },
+    { name: 'Nux Vomica', mfr: 'SBL', cat: 'PLANT' },
+    { name: 'Sulphur', mfr: 'Boiron', cat: 'MINERAL' },
+    { name: 'Lycopodium Clavatum', mfr: 'Schwabe', cat: 'PLANT' },
+    { name: 'Pulsatilla Nigricans', mfr: 'Boiron', cat: 'PLANT' },
+    { name: 'Natrum Muriaticum', mfr: 'Schwabe', cat: 'MINERAL' },
+    { name: 'Bryonia Alba', mfr: 'Schwabe', cat: 'PLANT' },
+    { name: 'Rhus Toxicodendron', mfr: 'SBL', cat: 'PLANT' },
+    { name: 'Arsenicum Album', mfr: 'SBL', cat: 'MINERAL' },
+    { name: 'Phosphorus', mfr: 'SBL', cat: 'MINERAL' },
+    { name: 'Calcarea Carbonica', mfr: 'SBL', cat: 'MINERAL' },
+    { name: 'Sepia Officinalis', mfr: 'Boiron', cat: 'ANIMAL' },
+    { name: 'Lachesis Mutus', mfr: 'Schwabe', cat: 'ANIMAL' },
+    { name: 'Ignatia Amara', mfr: 'Boiron', cat: 'PLANT' },
+    { name: 'Gelsemium Sempervirens', mfr: 'SBL', cat: 'PLANT' },
+    { name: 'Apis Mellifica', mfr: 'Schwabe', cat: 'ANIMAL' },
+    { name: 'Aconitum Napellus', mfr: 'SBL', cat: 'PLANT' },
+    { name: 'Hepar Sulphuris Calcareum', mfr: 'SBL', cat: 'MINERAL' },
+    { name: 'Mercurius Solubilis', mfr: 'Boiron', cat: 'MINERAL' },
+    { name: 'Silicea', mfr: 'Schwabe', cat: 'MINERAL' },
+    { name: 'Thuja Occidentalis', mfr: 'SBL', cat: 'PLANT' },
+    { name: 'Sanguinaria Canadensis', mfr: 'SBL', cat: 'PLANT' },
+    { name: 'Kali Bichromicum', mfr: 'Schwabe', cat: 'MINERAL' },
+    { name: 'China Officinalis', mfr: 'SBL', cat: 'PLANT' },
+    { name: 'Colocynthis', mfr: 'Boiron', cat: 'PLANT' },
+    { name: 'Magnesia Phosphorica', mfr: 'SBL', cat: 'MINERAL' },
+    { name: 'Veratrum Album', mfr: 'Schwabe', cat: 'PLANT' },
+    { name: 'Hypericum Perforatum', mfr: 'SBL', cat: 'PLANT' },
+    { name: 'Calendula Officinalis', mfr: 'SBL', cat: 'PLANT' },
+    { name: 'Chamomilla', mfr: 'Boiron', cat: 'PLANT' },
+    { name: 'Allium Cepa', mfr: 'SBL', cat: 'PLANT' },
+    { name: 'Euphrasia Officinalis', mfr: 'Schwabe', cat: 'PLANT' },
+    { name: 'Cantharis Vesicatoria', mfr: 'SBL', cat: 'ANIMAL' },
+    { name: 'Staphysagria', mfr: 'Boiron', cat: 'PLANT' },
+  ];
+
+  for (const m of medicines) {
+    await db.collection('medicines').add({
+      name: m.name,
+      manufacturer: m.mfr,
+      category: m.cat,
+      potencies: ['6C', '30C', '200C', '1M', '10M'],
+      isActive: true,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+  console.log(`âœ“ ${medicines.length} medicines`);
+
+  console.log('\nâœ… Seed complete. Login credentials:');
+  console.log('  Admin:        admin@asoka.clinic / Admin@1234');
+  console.log('  Doctor:       sharma@asoka.clinic / Doctor@1234');
+  console.log('  Receptionist: front@asoka.clinic / Recept@1234');
+}
+
+seed().catch((err) => { console.error(err); process.exit(1); });
+```
+
+Add to `package.json`:
+```json
+"seed": "ts-node --project scripts/tsconfig.json scripts/seed-firebase.ts"
+```
+
+Create `scripts/tsconfig.json`:
+```json
+{
+  "compilerOptions": {
+    "module": "CommonJS",
+    "target": "ES2020",
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "strict": true,
+    "skipLibCheck": true
+  }
+}
+```
+
+---
+
+## PART 15 â€” BUILD MILESTONES
+
+### MILESTONE 1 â€” Foundation
+â˜ `pnpm add firebase @tanstack/react-query@5 zustand zod @hookform/resolvers jspdf` completes
+â˜ `src/lib/firebase.ts` exports app, auth, db, storage
+â˜ `src/store/auth.store.ts` and `src/store/ui.store.ts` created
+â˜ `src/lib/auth.ts` â€” loginUser, fetchUserProfile, initAuthListener
+â˜ `src/app/App.tsx` replaced with router + ThemeProvider + QueryClientProvider + Toaster
+â˜ `AppShell.tsx` with Outlet â€” sidebar nav uses useNavigate(), active state uses useLocation()
+â˜ All 12 placeholder page files created
+â˜ `AuthGuard` uses real Zustand auth store â€” NOT hardcoded `const user = true`
+â˜ `vite build` â€” zero TypeScript errors
+â˜ `.env.example` committed, `.env` populated with your Firebase keys
+âœ“ DONE WHEN: login page renders, wrong password shows toast.error, right password redirects to /dashboard
+
+### MILESTONE 2 â€” Patient CRUD
+â˜ `src/lib/services/patients.service.ts` â€” all functions implemented
+â˜ `generatePatientRefId()` uses Firestore transaction
+â˜ PatientsPage loads from Firestore, search works, filter chips work, pagination works
+â˜ NewPatientPage: form saves to Firestore, photo uploads to Storage, navigates to profile
+â˜ PatientProfilePage: loads real patient from Firestore, Overview tab works
+âœ“ DONE WHEN: Create 2 real patients. Each gets a unique ASK-000X ID. Search finds them.
+
+### MILESTONE 3 â€” Visits & Clinical Core
+â˜ All visit-related services: visits, diagnoses, vitals, complaints, prescriptions
+â˜ NewVisitPage: draft created in Firestore on page load
+â˜ Multiple diagnoses: add/remove/autosave âœ“ CRITICAL FEATURE
+â˜ Payment section: all 7 methods, conditional reference field, auto-computed status âœ“ CRITICAL FEATURE
+â˜ Vitals: BMI auto-calc client-side, confirmed server-side on save
+â˜ Prescription rows: medicine autocomplete from Firestore, potency auto-fill
+â˜ Signature pad: captures and uploads to Firebase Storage
+â˜ Autosave: debounce 3s, "Savingâ€¦" â†’ "Saved Xs ago"
+â˜ Allergy banner shows for patients with allergies
+â˜ Warn on navigation away if form dirty
+â˜ PatientProfilePage: Visits tab shows real timeline, Prescriptions tab works
+âœ“ DONE WHEN: Full consultation for a real patient. 2 diagnoses (FINAL + PROVISIONAL). UPI payment recorded. Signed and saved. Appears in timeline.
+
+### MILESTONE 4 â€” Documents & Billing
+â˜ FileDropzone with Firebase Storage upload progress
+â˜ Documents tab on patient profile: list + upload + download
+â˜ Invoice auto-created when visit saved with fee > 0
+â˜ Billing tab on patient profile + Billing page
+â˜ Record payment Sheet â€” updates invoice amountDue and status
+â˜ Prescription PDF downloads correctly with jspdf
+â˜ Invoice PDF downloads correctly
+â˜ WhatsApp share link works
+âœ“ DONE WHEN: Upload a lab report. Save a â‚¹500 visit with UPI payment. Print the prescription PDF.
+
+### MILESTONE 5 â€” Appointments & Dashboard
+â˜ Appointments service + calendar week view
+â˜ Create, update status, cancel appointments
+â˜ Dashboard: real stats from Firestore
+â˜ Follow-up alerts from getFollowUpAlerts()
+â˜ Bar chart with real patient data (or empty state if no data)
+âœ“ DONE WHEN: Book appointment for a patient. See it on the calendar.
+
+### MILESTONE 6 â€” Polish & Launch Ready
+â˜ Reports page: all 4 tabs with real Firestore data
+â˜ Medicines page: full CRUD + search + active toggle
+â˜ Settings page: clinic profile saves/loads from Firestore, user management
+â˜ Dark mode works
+â˜ Command palette (âŒ˜K): patient search + quick actions
+â˜ Firestore security rules deployed â€” test Receptionist cannot see /visits subcollection
+â˜ All Skeleton loading states present
+â˜ All empty states present
+â˜ Audit logs written on: patient create, visit save, payment, login
+â˜ `vite build` â€” zero errors, zero warnings
+â˜ README with setup steps and credentials
+âœ“ DONE WHEN: Fresh clone â†’ fill .env â†’ pnpm install â†’ pnpm seed â†’ pnpm dev â†’ everything works.
+
+---
+
+## PART 16 â€” SELF-CHECK â€” RUN EVERY ITEM BEFORE CALLING DONE
+
+**Auth**
+â˜ Login with sharma@asoka.clinic / Doctor@1234 works
+â˜ Login with admin@asoka.clinic / Admin@1234 works
+â˜ Login with front@asoka.clinic / Recept@1234 works
+â˜ Wrong password: toast.error('Invalid email or password') â€” no crash, no white screen
+â˜ User doc missing in Firestore: toast.error('Account not configured...') + signs out
+â˜ Unauthenticated â†’ redirected to /login
+â˜ Page refresh â†’ stays logged in (Firebase persistence)
+â˜ Logout â†’ redirected to /login
+
+**Patients**
+â˜ Create patient â†’ ASK-0001, ASK-0002 (sequential, no gaps)
+â˜ Create 3 patients simultaneously â†’ no duplicate IDs (transaction test)
+â˜ Patient photo uploads to Firebase Storage, URL saved to Firestore
+â˜ Allergy added â†’ sienna alert always visible on profile
+â˜ Search by name works
+â˜ Search by mobile works
+â˜ Search by patientRefId works
+â˜ Soft delete â†’ patient gone from list, exists in Firestore with deletedAt set
+
+**Visits**
+â˜ New visit â†’ draft created in Firestore immediately on page load
+â˜ Add 3 diagnoses (1 FINAL, 1 PROVISIONAL, 1 DIFFERENTIAL) â†’ all saved to Firestore diagnoses subcollection
+â˜ Remove a diagnosis â†’ deleted from Firestore
+â˜ Vitals: BMI calculates live as height/weight typed
+â˜ Medicine autocomplete: type "Bell" â†’ Belladonna appears
+â˜ Select Belladonna â†’ potency select auto-populates with ["6C","30C","200C","1M","10M"]
+â˜ Payment method: select UPI â†’ reference field appears labelled "UPI Reference No."
+â˜ Payment method: select Cheque â†’ reference field appears labelled "Cheque Number"
+â˜ Payment method: select Cash â†’ reference field hidden
+â˜ Enter total â‚¹500, paid â‚¹200 â†’ badge shows "PARTIAL" + "â‚¹300 remaining"
+â˜ Enter total â‚¹500, paid â‚¹500 â†’ badge shows "PAID" (sage colour)
+â˜ Enter total â‚¹500, paid â‚¹0 â†’ badge shows "PENDING" (destructive colour)
+â˜ Autosave: change any field â†’ "Savingâ€¦" appears â†’ 3 seconds later â†’ "Saved Xs ago"
+â˜ Signature pad: draw, confirm â†’ uploads to Firebase Storage â†’ URL saved to visit
+â˜ Navigate away with unsaved changes â†’ AlertDialog warning appears
+â˜ Save visit: isDraft=false, patient.lastVisitDate updated, invoice auto-created
+â˜ Saved visit appears in patient timeline
+â˜ Visit > 24h old: isLocked=true, edit button disabled, info alert shown
+â˜ Allergy banner appears for patients with allergies, "Acknowledged" collapses it
+â˜ Repeat last prescription: copies medicines from previous visit
+
+**Billing**
+â˜ Invoice auto-created when visit saved with fee
+â˜ Record payment: invoice amountDue decreases, status updates to PARTIAL then PAID
+â˜ Prescription PDF downloads with correct patient + medicines + doctor signature
+â˜ Invoice PDF downloads with correct amounts
+â˜ WhatsApp link opens with pre-filled message
+
+**Appointments**
+â˜ Create appointment â†’ appears on calendar in correct day/time slot
+â˜ Update status from BOOKED to COMPLETED â†’ badge changes
+â˜ Cancel appointment â†’ slot clears
+
+**Permissions (Receptionist role)**
+â˜ Receptionist cannot navigate to /patients/:id/visits/new
+â˜ Receptionist cannot see Visits tab on patient profile
+â˜ Receptionist cannot see Clinical History tab
+â˜ Receptionist CAN see patient list
+â˜ Receptionist CAN create appointments
+â˜ Receptionist CAN record payments
+â˜ Firestore security rules: direct Firestore call to /patients/{id}/visits returns permission denied for Receptionist
+
+**UX**
+â˜ âŒ˜K / Ctrl+K opens command palette
+â˜ Patient search in command palette returns results from Firestore
+â˜ Esc closes command palette
+â˜ Dark mode: all surfaces switch correctly
+â˜ All pages show Skeleton while loading
+â˜ All empty states show (no patients yet, no visits yet, etc.)
+â˜ All errors show descriptive toast.error messages
+
+---
+
+## PART 17 â€” ABSOLUTE RULES
+
+âœ— NEVER hardcode patient, visit, appointment, invoice, or medicine data in any component
+âœ— NEVER use `const user = true` or any fake auth â€” real Zustand store only
+âœ— NEVER store auth tokens in localStorage â€” Firebase SDK manages its own persistence
+âœ— NEVER hard-delete any Firestore document â€” always set deletedAt field
+âœ— NEVER hard-delete Firebase Storage files linked to patient records
+âœ— NEVER allow Receptionist to read clinical data â€” enforce in UI routes AND Firestore rules
+âœ— NEVER use read-then-write for sequential ID generation â€” always use runTransaction
+âœ— NEVER create two Invoice documents for the same visitId â€” query first, upsert
+âœ— NEVER change anything in src/styles/theme.css â€” it is correct and complete
+âœ— NEVER rebuild any component in src/app/components/ui/ â€” use them as-is
+âœ— NEVER change the visual design, spacing, or colour scheme from the prototype
+âœ— NEVER commit .env â€” only .env.example
+âœ— NEVER show a generic "Error" toast â€” always describe what failed
+
+---
+
+*End of master build prompt. Version 4.0 â€” Asoka HMS.*
+*Stack: React 18 + Vite 6 + Tailwind v4 + Firebase (Auth + Firestore + Storage) + jspdf*
+*The design is done. The data model is done. Wire them together.*
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-08-19T08:07:11+05:30.
+</ADDITIONAL_METADATA>
+<USER_SETTINGS_CHANGE>
+The user changed setting `Model Selection` from None to Claude Sonnet 4.6 (Thinking). No need to comment on this change if the user doesn't ask about it. If reporting what model you are, please use a human readable name instead of the exact string.
+</USER_SETTINGS_CHANGE>
