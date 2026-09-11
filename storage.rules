@@ -1,0 +1,28 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Patient photos — any authenticated user can read, clinical roles write
+    match /patients/{patientId}/photo.{ext} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
+    // Visit files — signatures, lab reports — clinical roles only
+    match /patients/{patientId}/visits/{visitId}/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    // Catch-all for any other patient files
+    match /patients/{patientId}/{allPaths=**} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+  }
+}

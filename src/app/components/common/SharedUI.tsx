@@ -27,14 +27,14 @@ export function Btn({ variant="primary", size="md", onClick, disabled, icon, chi
   return <button type={type} onClick={onClick} disabled={disabled} style={{ height:h, padding:`0 ${px}px`, borderRadius:8, fontSize:fs, fontWeight:500, display:"inline-flex", alignItems:"center", gap:6, cursor:disabled?"not-allowed":"pointer", opacity:disabled?0.4:1, transition:"all 150ms ease-out", fontFamily:"inherit", whiteSpace:"nowrap", width:fullWidth?"100%":undefined, justifyContent:fullWidth?"center":undefined, ...vs[variant] }}>{icon && <span style={{ display:"flex" }}>{icon}</span>}{children}</button>;
 }
 
-export function Inp({ label, value, onChange, placeholder, type="text", pre, app, disabled, readOnly, mono, defaultValue, name }: { label?: string; value?: string|number; onChange?: (v: string) => void; placeholder?: string; type?: string; pre?: React.ReactNode; app?: React.ReactNode; disabled?: boolean; readOnly?: boolean; mono?: boolean; defaultValue?: string|number; name?: string; }) {
+export function Inp({ label, value, onChange, placeholder, type="text", pre, app, disabled, readOnly, mono, defaultValue, name, maxLength }: { label?: string; value?: string|number; onChange?: (v: string) => void; placeholder?: string; type?: string; pre?: React.ReactNode; app?: React.ReactNode; disabled?: boolean; readOnly?: boolean; mono?: boolean; defaultValue?: string|number; name?: string; maxLength?: number; }) {
   const [focused, setFocused] = useState(false);
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
       {label && <label style={{ fontSize:11, fontWeight:500, color:P.textSecondary, letterSpacing:"0.04em" }}>{label}</label>}
       <div style={{ height:36, display:"flex", alignItems:"center", background:P.bgSunken, border:`1.5px solid ${focused?P.violet:P.border}`, borderRadius:8, overflow:"hidden", transition:"border-color 150ms", boxShadow:focused?"0 1px 3px rgba(28,26,23,0.08)":"none" }}>
         {pre && <div style={{ padding:"0 8px", color:P.textMuted, display:"flex", alignItems:"center", flexShrink:0 }}>{pre}</div>}
-        <input name={name} type={type} value={value} defaultValue={defaultValue} onChange={e => onChange?.(e.target.value)} placeholder={placeholder} disabled={disabled} readOnly={readOnly} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} style={{ flex:1, height:"100%", background:"transparent", border:"none", outline:"none", fontSize:13, color:disabled||readOnly?P.textMuted:P.textPrimary, fontFamily:mono?"JetBrains Mono, monospace":"inherit", padding:pre?"0 8px 0 0":"0 10px", cursor:readOnly?"default":undefined }} />
+        <input name={name} type={type} value={value} defaultValue={defaultValue} onChange={e => onChange?.(e.target.value)} placeholder={placeholder} disabled={disabled} readOnly={readOnly} maxLength={maxLength} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} style={{ flex:1, height:"100%", background:"transparent", border:"none", outline:"none", fontSize:13, color:disabled||readOnly?P.textMuted:P.textPrimary, fontFamily:mono?"JetBrains Mono, monospace":"inherit", padding:pre?"0 8px 0 0":"0 10px", cursor:readOnly?"default":undefined }} />
         {app && <div style={{ padding:"0 8px", color:P.textMuted, display:"flex", alignItems:"center", flexShrink:0 }}>{app}</div>}
       </div>
     </div>
@@ -107,14 +107,17 @@ export function SectionCard({ title, children, action, badge, defaultOpen=true }
   );
 }
 
-export type BadgeVariant = "sage"|"ochre"|"sienna"|"slate"|"neutral";
+export type BadgeVariant = "sage"|"ochre"|"sienna"|"slate"|"neutral"|"violet"|"gold"|"green";
 export function Bdg({ children, variant="neutral", size="sm" }: { children: React.ReactNode; variant?: BadgeVariant; size?: "sm"|"xs" }) {
   const vs: Record<BadgeVariant, React.CSSProperties> = {
-    sage: { background:P.violetLight, color:P.violet, border:`1px solid ${P.violet}` },
-    ochre: { background:P.goldLight, color:P.gold, border:`1px solid ${P.gold}` },
+    sage: { background:P.sageLight, color:P.sageDark, border:`1px solid ${P.sage}` },
+    ochre: { background:P.ochreLight, color:P.ochreDark, border:`1px solid ${P.ochre}` },
     sienna: { background:P.siennaLight, color:P.sienna, border:`1px solid ${P.sienna}` },
     slate: { background:P.slateLight, color:P.slate, border:`1px solid ${P.slate}` },
     neutral: { background:P.bgSunken, color:P.textSecondary, border:`1px solid ${P.borderStrong}` },
+    violet: { background:P.violetLight, color:P.violetDark, border:`1px solid ${P.violet}` },
+    gold: { background:P.ochreLight, color:P.ochreDark, border:`1px solid ${P.ochre}` },
+    green: { background:P.sageLight, color:P.sageDark, border:`1px solid ${P.sage}` },
   };
   const pad = size==="sm" ? "4px 8px" : "2px 6px";
   const fs = size==="sm" ? 11 : 10;

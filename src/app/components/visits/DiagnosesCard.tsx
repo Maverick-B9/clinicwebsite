@@ -7,9 +7,10 @@ import { addDiagnosis, updateDiagnosis, deleteDiagnosis } from '../../../lib/ser
 interface DiagnosesCardProps {
   patientId: string;
   visitId: string;
+  disableAutoAppend?: boolean;
 }
 
-export function DiagnosesCard({ patientId, visitId }: DiagnosesCardProps) {
+export function DiagnosesCard({ patientId, visitId, disableAutoAppend = false }: DiagnosesCardProps) {
   const { control, register, getValues, setValue } = useFormContext();
   const { fields, append, remove } = useFieldArray({
     control,
@@ -43,12 +44,12 @@ export function DiagnosesCard({ patientId, visitId }: DiagnosesCardProps) {
     remove(index);
   };
 
-  // Ensure default row
+  // Ensure default row — suppressed when parent pre-populates via methods.reset()
   React.useEffect(() => {
-    if (fields.length === 0) {
+    if (!disableAutoAppend && fields.length === 0) {
       append({ id: '', text: '', type: 'PROVISIONAL' });
     }
-  }, [fields.length, append]);
+  }, [fields.length, append, disableAutoAppend]);
 
   return (
     <div style={{

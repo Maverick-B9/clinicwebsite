@@ -90,6 +90,8 @@ export interface Visit {
   followUpNotes?: string;
   signatureUrl?: string;
   visitNotes?: string;
+  clinicalNotes?: string;
+  visitDate?: string;
   prescriptionNotes?: string;
   createdAt: any;
   updatedAt: any;
@@ -269,4 +271,17 @@ export interface AuditLog {
   resourceId: string;
   changes?: Record<string, { before: unknown; after: unknown }>;
   createdAt: any;
+}
+
+export interface SymptomNote {
+  id: string;
+  symptomNumber: number;
+  symptomLabel: string;
+  patientId: string;
+  visitId: string;
+  visitDate: string;
+  visitNumber: number;
+  notes: string;
+  createdAt: any;
+  updatedAt: any;
 }

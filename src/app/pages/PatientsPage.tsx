@@ -20,7 +20,16 @@ export function PatientsPage() {
   }, []);
 
   const rows = patients
-    .filter(p => (!search || p.name.toLowerCase().includes(search.toLowerCase()) || p.patientRefId.includes(search)))
+    .filter(p => {
+      if (!search) return true;
+      const q = search.toLowerCase();
+      return (
+        p.name.toLowerCase().includes(q) ||
+        p.patientRefId.toLowerCase().includes(q) ||
+        (p.mobile && p.mobile.includes(search)) ||
+        (p.whatsapp && p.whatsapp.includes(search))
+      );
+    })
     .sort((a,b) => { 
       const d = sortDir === "asc" ? 1 : -1; 
       if(sortCol === "name") return a.name.localeCompare(b.name) * d; 
@@ -59,7 +68,7 @@ export function PatientsPage() {
         <div style={{ flex:1 }}/>
         <div style={{ position:"relative" }}>
           <Search size={13} style={{ position:"absolute", left:9, top:"50%", transform:"translateY(-50%)", color:P.textMuted, pointerEvents:"none" }}/>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search patients..." style={{ height:32, padding:"0 10px 0 30px", background:P.bgSunken, border:`1.5px solid ${P.border}`, borderRadius:8, fontSize:12, fontFamily:"inherit", outline:"none", color:P.textPrimary, width:220 }}/>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, ID or mobile..." style={{ height:32, padding:"0 10px 0 30px", background:P.bgSunken, border:`1.5px solid ${P.border}`, borderRadius:8, fontSize:12, fontFamily:"inherit", outline:"none", color:P.textPrimary, width:240 }}/>
         </div>
       </div>
       <Card>

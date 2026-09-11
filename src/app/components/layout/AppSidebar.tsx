@@ -5,13 +5,15 @@ import { Home, Users, Plus, Stethoscope, Calendar, Receipt, BarChart2, Pill, Set
 import { Logo } from '../common/Logo';
 
 const P = {
-  sage: "#4A7C59", sageLight: "#E8F2EC", sageDark: "#2E5C3A",
-  ochre: "#B07D2E", ochreLight: "#FBF3E2",
-  sienna: "#C0472B", siennaLight: "#FDEDE9",
-  slate: "#3D6B8C", slateLight: "#E5EFF5",
-  bgBase: "#F6F4F0", bgSurface: "#FFFFFF", bgSunken: "#EFECE7",
-  border: "#DDD9D2", borderStrong: "#C4BFB5",
-  textPrimary: "#1C1A17", textSecondary: "#6B6458", textMuted: "#9E9688",
+  violet: "var(--primary)", violetLight: "var(--accent)", violetDark: "var(--accent-foreground)",
+  gold: "var(--chart-3)", goldLight: "var(--muted)",
+  sage: "#4E7058", sageLight: "#E6EFE8", sageDark: "#2F4A37",
+  ochre: "var(--chart-3)", ochreLight: "#F7F0E2",
+  sienna: "var(--destructive)", siennaLight: "#FBEAE7",
+  slate: "var(--chart-2)", slateLight: "var(--chart-2)",
+  bgBase: "var(--background)", bgSurface: "var(--card)", bgSunken: "var(--secondary)",
+  border: "var(--border)", borderStrong: "var(--switch-background)",
+  textPrimary: "var(--foreground)", textSecondary: "var(--muted-foreground)", textMuted: "var(--muted-foreground)",
 };
 
 function initials(name: string) { return name.split(" ").map(w => w[0]).slice(0,2).join("").toUpperCase(); }
@@ -26,7 +28,7 @@ function Av({ name, size = 32 }: { name: string; size?: number }) {
   return <div style={{ width:size, height:size, borderRadius:"50%", background:avatarBg(name), color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontSize:size*0.34, fontWeight:600, flexShrink:0, letterSpacing:"0.02em", fontFamily:"Inter, sans-serif" }}>{initials(name)}</div>;
 }
 
-function Bdg({ variant = "neutral", size = "sm", children }: { variant?: "sage" | "ochre" | "sienna" | "slate" | "neutral"; size?: "xs" | "sm"; children: React.ReactNode }) {
+function Bdg({ variant = "neutral", size = "sm", children }: { variant?: "sage" | "ochre" | "sienna" | "slate" | "neutral" | "violet"; size?: "xs" | "sm"; children: React.ReactNode }) {
   const map: Record<string, [string, string]> = {
     violet:[P.violetLight, P.violetDark], gold:[P.goldLight, P.gold],
     sienna:[P.siennaLight, P.sienna], slate:[P.slateLight, P.slate],

@@ -43,3 +43,8 @@ export async function getClinicalMetrics() {
 
   return { topDiagnoses, topMedicines };
 }
+
+export async function getFollowUpAlerts() { return []; }
+export async function getPatientStats(period: string) { return { total: 0, new: 0 }; }
+export async function getRevenueStats(period: string) { return { revenue: 0, pending: 0 }; }
+export async function getTopMedicines(period: string) { return []; }

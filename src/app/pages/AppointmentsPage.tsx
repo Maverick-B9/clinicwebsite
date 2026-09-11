@@ -65,7 +65,7 @@ export function AppointmentsPage() {
                       <td style={{ padding: '12px 10px', fontSize: 13, fontWeight: 500, color: P.textPrimary }}>{a.patientName}</td>
                       <td style={{ padding: '12px 10px', fontSize: 13, color: P.textSecondary }}>{a.doctorName}</td>
                       <td style={{ padding: '12px 10px' }}><Bdg variant="slate">{a.type}</Bdg></td>
-                      <td style={{ padding: '12px 10px', fontSize: 12, color: P.textSecondary }}>{a.reason}</td>
+                      <td style={{ padding: '12px 10px', fontSize: 12, color: P.textSecondary }}>{a.notes}</td>
                       <td style={{ padding: '12px 10px' }}><Bdg variant={a.status==='CONFIRMED'?'green':a.status==='CANCELLED'?'sienna':'gold'}>{a.status}</Bdg></td>
                     </tr>
                   ))}

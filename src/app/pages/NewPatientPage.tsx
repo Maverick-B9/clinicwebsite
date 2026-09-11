@@ -5,25 +5,50 @@ import { Inp, Sel, Card, Btn } from '../components/common/SharedUI';
 import { useNavigate } from 'react-router';
 import { createPatient } from '../../lib/services/patients.service';
 
+/** Parse dd/mm/yyyy -> yyyy-mm-dd for Firestore storage */
+function parseDOB(dob: string): string {
+  const parts = dob.split('/');
+  if (parts.length === 3) {
+    const [dd, mm, yyyy] = parts;
+    if (dd && mm && yyyy && yyyy.length === 4) {
+      return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+    }
+  }
+  return dob;
+}
+
+/** Calculate age from dd/mm/yyyy input */
+function calcAge(dob: string): number | null {
+  const parsed = parseDOB(dob);
+  if (!parsed.includes('-')) return null;
+  const birthDate = new Date(parsed);
+  if (isNaN(birthDate.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+  return age >= 0 ? age : null;
+}
+
 export function NewPatientPage() {
   const navigate = useNavigate();
   const [sex, setSex] = useState<"MALE"|"FEMALE"|"OTHER">("FEMALE");
   const [allergies, setAllergies] = useState<string[]>([]);
   const [allergyInput, setAllergyInput] = useState("");
   const [showIns, setShowIns] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     name: '', dob: '', bloodGroup: 'Unknown', maritalStatus: '', mobile: '', email: '',
     address: '', city: '', state: '', pincode: '', guardianName: '', guardianRelation: '',
     idType: '', idNumber: '', occupation: '', referredBy: '', insuranceProvider: '', insurancePolicy: '', notes: ''
   });
-  
+
   const handleChange = (k: string, v: string) => setFormData(prev => ({...prev, [k]: v}));
 
   const handleSave = async () => {
     try {
       const p = await createPatient({
-        name: formData.name, dob: formData.dob, sex, bloodGroup: formData.bloodGroup as any,
+        name: formData.name, dob: parseDOB(formData.dob), sex, bloodGroup: formData.bloodGroup as any,
         maritalStatus: formData.maritalStatus, mobile: formData.mobile, email: formData.email,
         address: formData.address, city: formData.city, state: formData.state, pincode: formData.pincode,
         guardianName: formData.guardianName, guardianRelation: formData.guardianRelation,
@@ -37,6 +62,8 @@ export function NewPatientPage() {
       alert("Failed to save patient");
     }
   };
+
+  const age = calcAge(formData.dob);
 
   return (
     <div>
@@ -65,7 +92,18 @@ export function NewPatientPage() {
             <div style={{ padding:20, display:"flex", flexDirection:"column", gap:14 }}>
               <Inp label="Full name" value={formData.name} onChange={v => handleChange('name',v)} placeholder="Patient full name"/>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-                <Inp label="Date of birth" type="date" value={formData.dob} onChange={v => handleChange('dob',v)}/>
+                <div>
+                  <Inp
+                    label="Date of birth (dd/mm/yyyy)"
+                    value={formData.dob}
+                    onChange={v => handleChange('dob', v)}
+                    placeholder="e.g. 14/03/1989"
+                    maxLength={10}
+                  />
+                  {formData.dob && age !== null && (
+                    <div style={{ fontSize: 11, color: P.textMuted, marginTop: 3 }}>Age: {age} years</div>
+                  )}
+                </div>
                 <div>
                   <div style={{ fontSize:11, fontWeight:500, color:P.textSecondary, marginBottom:4, letterSpacing:"0.04em" }}>Sex</div>
                   <div style={{ display:"flex", gap:6 }}>

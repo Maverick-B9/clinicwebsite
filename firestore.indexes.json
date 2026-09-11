@@ -1,0 +1,21 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "symptomNotes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "symptomNumber", "order": "ASCENDING" },
+        { "fieldPath": "visitNumber", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "symptomNotes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "symptomNumber", "order": "ASCENDING" },
+        { "fieldPath": "visitId", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

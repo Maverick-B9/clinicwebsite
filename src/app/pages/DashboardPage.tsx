@@ -58,7 +58,7 @@ export function DashboardPage() {
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:14 }}>
-        <StatCard icon={<Calendar size={18}/>} label="Today's appointments" value={appointments.length} sub={`${appointments.filter(a=>a.status==='PENDING').length} pending confirmation`} subColor={P.gold}/>
+        <StatCard icon={<Calendar size={18}/>} label="Today's appointments" value={appointments.length} sub={`${appointments.filter(a=>a.status==='WAITING').length} pending confirmation`} subColor={P.gold}/>
         <StatCard icon={<Users size={18}/>} label="Total patients" value={patients.length} sub="Lifetime record"/>
         <StatCard icon={<AlertCircle size={18}/>} label="Follow-ups due" value={followUps.length} sub="Upcoming" subColor={P.sienna}/>
         <StatCard icon={<Receipt size={18}/>} label="Today's revenue" value={`₹${todayRevenue.toLocaleString('en-IN')}`} sub={`₹${pendingRevenue.toLocaleString('en-IN')} pending globally`} subColor={P.gold} highlight/>
@@ -81,7 +81,7 @@ export function DashboardPage() {
                     </div>
                     <div style={{ flex:1 }}>
                       <div style={{ fontSize:13, fontWeight:500, color:P.textPrimary }}>{apt.patientName}</div>
-                      <div style={{ fontSize:11, color:P.textSecondary }}>{apt.reason}</div>
+                      <div style={{ fontSize:11, color:P.textSecondary }}>{apt.notes}</div>
                     </div>
                     <Bdg variant={apt.status === 'CONFIRMED' ? 'green' : 'gold'}>{apt.status}</Bdg>
                   </div>

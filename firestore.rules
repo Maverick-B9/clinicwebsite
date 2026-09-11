@@ -51,6 +51,9 @@ service cloud.firestore {
       match /documents/{id} {
         allow read, write: if isSignedIn();
       }
+      match /symptomNotes/{noteId} {
+        allow read, write: if isSignedIn() && isClinical();
+      }
     }
     
     match /appointments/{apptId} {

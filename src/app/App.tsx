@@ -16,6 +16,7 @@ import { NewPatientPage } from './pages/NewPatientPage';
 import { PatientProfilePage } from './pages/PatientProfilePage';
 import { NewVisitPage } from './pages/NewVisitPage';
 import { VisitDetailPage } from './pages/VisitDetailPage';
+import { EditPatientPage } from './pages/EditPatientPage';
 import { AppointmentsPage } from './pages/AppointmentsPage';
 import { BillingPage } from './pages/BillingPage';
 import { MedicinesPage } from './pages/MedicinesPage';
@@ -50,6 +51,7 @@ const router = createBrowserRouter([
       { path: 'patients', element: <PatientsPage /> },
       { path: 'patients/new', element: <NewPatientPage /> },
       { path: 'patients/:patientId', element: <PatientProfilePage /> },
+      { path: 'patients/:patientId/edit', element: <EditPatientPage /> },
       { path: 'patients/:patientId/visits/new', element: <NewVisitPage /> },
       { path: 'patients/:patientId/visits/:visitId', element: <VisitDetailPage /> },
       { path: 'appointments', element: <AppointmentsPage /> },
