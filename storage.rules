@@ -6,23 +6,31 @@ service firebase.storage {
       return request.auth != null;
     }
 
-    // Patient photos — any authenticated user can read, clinical roles write
-    match /patients/{patientId}/photo.{ext} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn();
+    function isValidFileType() {
+      return request.resource.contentType.matches('image/.*')
+          || request.resource.contentType == 'application/pdf';
     }
 
-    // Visit files — signatures, lab reports — clinical roles only
-    match /patients/{patientId}/visits/{visitId}/{fileName} {
+    function isUnderSizeLimit() {
+      return request.resource.size < 10 * 1024 * 1024;
+    }
+
+    match /patients/{patientId}/photo.{ext} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn();
+      allow write: if isSignedIn() && isValidFileType() && isUnderSizeLimit();
       allow delete: if isSignedIn();
     }
 
-    // Catch-all for any other patient files
+    match /patients/{patientId}/visits/{visitId}/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && isUnderSizeLimit();
+      allow delete: if isSignedIn();
+    }
+
     match /patients/{patientId}/{allPaths=**} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn();
+      allow write: if isSignedIn() && isUnderSizeLimit();
+      allow delete: if isSignedIn();
     }
   }
 }

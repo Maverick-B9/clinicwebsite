@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { getPatient } from '../../lib/services/patients.service';
-import { getVisit } from '../../lib/services/visits.service';
+import { getVisit, updateVisit } from '../../lib/services/visits.service';
 import { listDiagnoses } from '../../lib/services/diagnoses.service';
 import { listPrescriptionItems } from '../../lib/services/prescriptions.service';
 import type { Patient, Visit, PaymentMethod } from '../../types';
@@ -37,28 +37,28 @@ export function VisitDetailPage() {
   });
 
   useEffect(() => {
-    if (patientId) getPatient(patientId).then(setPatient);
-  }, [patientId]);
-
-  useEffect(() => {
     if (!patientId || !visitId) return;
+    // Load ALL data in a single Promise.all so dataLoaded=true is only set
+    // after patient, visit, diagnoses, and prescriptions are all available.
     Promise.all([
+      getPatient(patientId),
       getVisit(patientId, visitId),
       listDiagnoses(patientId, visitId),
       listPrescriptionItems(patientId, visitId),
-    ]).then(([v, dx, rx]) => {
+    ]).then(([p, v, dx, rx]) => {
+      setPatient(p);
       setVisit(v);
       methods.reset({
         diagnoses: dx.map(d => ({ id: d.id, type: d.type, text: d.text })),
-        prescriptionItems: rx.map(p => ({
-          id: p.id,
-          medicine: p.medicineName,
-          potency: p.potency ?? '',
-          dosage: p.dosage ?? '',
-          repetition: p.repetition ?? '',
-          durationDays: p.durationDays ?? 5,
-          beforeAfterFood: p.beforeAfterFood ?? 'AFTER',
-          notes: p.instructions ?? '',
+        prescriptionItems: rx.map(item => ({
+          id: item.id,
+          medicine: item.medicineName ?? '',
+          potency: item.potency ?? '',
+          dosage: item.dosage ?? '',
+          repetition: item.repetition ?? '',
+          durationDays: item.durationDays ?? 5,
+          beforeAfterFood: item.beforeAfterFood ?? 'AFTER',
+          notes: item.instructions ?? '',
         })),
         consultationFee: String(v.consultationFee ?? 500),
         medicineFee: String(v.medicineFee ?? 0),
@@ -70,7 +70,11 @@ export function VisitDetailPage() {
         clinicalNotes: v.clinicalNotes ?? '',
         visitDate: v.visitDate ?? new Date().toISOString().split('T')[0],
       });
+      // Set dataLoaded LAST — after patient+visit+reset are all done
       setDataLoaded(true);
+    }).catch(err => {
+      console.error('VisitDetailPage: failed to load visit data', err);
+      setDataLoaded(true); // unblock UI even on error
     });
   }, [patientId, visitId]);
 

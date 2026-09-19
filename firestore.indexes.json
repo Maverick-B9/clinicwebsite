@@ -1,6 +1,13 @@
 {
   "indexes": [
     {
+      "collectionGroup": "visits",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "visitNumber", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "symptomNotes",
       "queryScope": "COLLECTION",
       "fields": [
@@ -14,6 +21,35 @@
       "fields": [
         { "fieldPath": "symptomNumber", "order": "ASCENDING" },
         { "fieldPath": "visitId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "prescriptionItems",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "sortOrder", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "patients",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "name", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "appointments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "scheduledAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "patientId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     }
   ],

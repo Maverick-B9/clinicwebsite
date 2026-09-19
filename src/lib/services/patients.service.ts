@@ -77,29 +77,31 @@ export async function syncVisitCounts(): Promise<void> {
 
 export async function listPatients(opts: {
   search?: string;
-  status?: string;
   pageSize?: number;
   lastDoc?: DocumentSnapshot;
 }): Promise<{ patients: Patient[]; lastDoc: DocumentSnapshot | null }> {
-  let q = query(
+  const q = query(
     collection(db, 'patients'),
     orderBy('name'),
-    limit(opts.pageSize ?? 25),
+    limit(opts.pageSize ?? 200),
   );
-  if (opts.lastDoc) q = query(q, startAfter(opts.lastDoc));
   const snap = await getDocs(q);
-  // Filter out soft-deleted patients client-side to avoid composite index requirements
-  let patients = snap.docs.map(d => ({ id: d.id, ...d.data() } as Patient));
-  patients = patients.filter(p => p.deletedAt === null || p.deletedAt === undefined);
-  const filtered = opts.search
-    ? patients.filter(p =>
-        p.name.toLowerCase().includes(opts.search!.toLowerCase()) ||
-        p.mobile.includes(opts.search!) ||
-        p.patientRefId.toLowerCase().includes(opts.search!.toLowerCase()),
-      )
-    : patients;
+  let patients = snap.docs
+    .map(d => ({ id: d.id, ...d.data() } as Patient))
+    .filter(p => !p.deletedAt);
+
+  if (opts.search) {
+    const s = opts.search.toLowerCase();
+    patients = patients.filter(p =>
+      p.name.toLowerCase().includes(s) ||
+      (p.patientRefId && p.patientRefId.toLowerCase().includes(s)) ||
+      (p.mobile && p.mobile.includes(opts.search!)) ||
+      (p.whatsapp && p.whatsapp.includes(opts.search!))
+    );
+  }
+
   return {
-    patients: filtered,
+    patients,
     lastDoc: snap.docs[snap.docs.length - 1] ?? null,
   };
 }

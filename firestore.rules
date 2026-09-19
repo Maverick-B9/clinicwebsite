@@ -1,89 +1,107 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
     function isSignedIn() {
       return request.auth != null;
     }
-    
+
     function getUserRole() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
     }
-    
-    function isAdmin()        { return getUserRole() == 'ADMIN'; }
-    function isDoctor()       { return getUserRole() == 'DOCTOR'; }
-    function isReceptionist() { return getUserRole() == 'RECEPTIONIST'; }
+
+    function isAdmin()        { return isSignedIn() && getUserRole() == 'ADMIN'; }
+    function isDoctor()       { return isSignedIn() && getUserRole() == 'DOCTOR'; }
+    function isReceptionist() { return isSignedIn() && getUserRole() == 'RECEPTIONIST'; }
     function isClinical()     { return isAdmin() || isDoctor(); }
-    
-    // Default rule: block all unless explicitly allowed
+
     match /{document=**} {
       allow read, write: if false;
     }
-    
+
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
-      allow update: if request.auth.uid == userId; // own profile
+      allow create: if isAdmin();
+      allow update: if isAdmin() || request.auth.uid == userId;
+      allow delete: if false;
     }
 
     match /patients/{patientId} {
-      allow read, write: if isSignedIn();
-      
-      // Receptionist is blocked from visits subcollection
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if false;
+
       match /visits/{visitId} {
-        allow read, write: if isSignedIn() && isClinical();
-        
-        match /prescriptionItems/{itemId} {
-          allow read, write: if isSignedIn() && isClinical();
+        allow read, write: if isClinical();
+
+        match /diagnoses/{id} {
+          allow read, write: if isClinical();
         }
-        
-        match /diagnoses/{diagnosisId} {
-          allow read, write: if isSignedIn() && isClinical();
+        match /vitals/{id} {
+          allow read, write: if isClinical();
+        }
+        match /complaints/{id} {
+          allow read, write: if isClinical();
+        }
+        match /prescriptionItems/{id} {
+          allow read, write: if isClinical();
+        }
+        match /documents/{id} {
+          allow read, write: if isSignedIn();
         }
       }
-      
+
       match /clinicalHistory/{id} {
-        allow read, write: if isSignedIn() && isClinical();
+        allow read, write: if isClinical();
       }
       match /familyHistory/{id} {
-        allow read, write: if isSignedIn() && isClinical();
+        allow read, write: if isClinical();
+      }
+      match /symptomNotes/{id} {
+        allow read, write: if isClinical();
       }
       match /documents/{id} {
         allow read, write: if isSignedIn();
       }
-      match /symptomNotes/{noteId} {
-        allow read, write: if isSignedIn() && isClinical();
+      match /meta/{id} {
+        allow read, write: if isClinical();
       }
     }
-    
-    match /appointments/{apptId} {
+
+    match /appointments/{id} {
       allow read, write: if isSignedIn();
+      allow delete: if false;
     }
-    
-    match /medicines/{medId} {
+
+    match /medicines/{id} {
       allow read: if isSignedIn();
-      allow write: if isClinical();
+      allow create, update: if isClinical();
+      allow delete: if false;
     }
-    
-    match /invoices/{invoiceId} {
+
+    match /invoices/{id} {
       allow read, write: if isSignedIn();
+      allow delete: if false;
+
+      match /payments/{id} {
+        allow read, write: if isSignedIn();
+      }
     }
-    
-    match /sequences/{seqId} {
-      allow read, write: if isSignedIn();
+
+    match /auditLogs/{id} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn();
+      allow update, delete: if false;
     }
-    
+
     match /clinicSettings/{key} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }
-    
-    // Global collection group queries for reports
-    match /{path=**}/diagnoses/{diagnosisId} {
-      allow read: if isSignedIn() && isClinical();
-    }
-    match /{path=**}/prescriptionItems/{itemId} {
-      allow read: if isSignedIn() && isClinical();
+
+    match /sequences/{id} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
     }
   }
 }

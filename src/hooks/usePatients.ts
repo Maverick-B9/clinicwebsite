@@ -6,10 +6,10 @@ import {
 import type { Patient } from '../types';
 import type { DocumentSnapshot } from 'firebase/firestore';
 
-export function usePatients(search?: string, status?: string, lastDoc?: DocumentSnapshot) {
+export function usePatients(search?: string, lastDoc?: DocumentSnapshot) {
   return useQuery({
-    queryKey: ['patients', search, status], // Omitted lastDoc to keep same key
-    queryFn: () => listPatients({ search, status, lastDoc }),
+    queryKey: ['patients', search],
+    queryFn: () => listPatients({ search, lastDoc }),
   });
 }
 

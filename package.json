@@ -6,7 +6,8 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite",
-    "seed": "ts-node --project scripts/tsconfig.json scripts/seed-firebase.ts"
+    "seed": "ts-node --project scripts/tsconfig.json scripts/seed-firebase.ts",
+    "migrate:prescriptions": "ts-node --project scripts/tsconfig.json scripts/migrate-prescriptions.ts"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
