@@ -11,30 +11,34 @@ export async function searchMedicines(
   const snap = await getDocs(
     query(
       collection(db, 'medicines'),
-      where('isActive', '==', true),
       where('name', '>=', q),
       where('name', '<=', q + '\uf8ff'),
-      limit(8),
+      limit(20),
     ),
   );
-  return snap.docs.map(d => ({
-    id: d.id,
-    name: d.data().name,
-    potencies: d.data().potencies,
-  }));
+  return snap.docs
+    .filter(d => d.data().isActive === true)
+    .slice(0, 8)
+    .map(d => ({
+      id: d.id,
+      name: d.data().name,
+      potencies: d.data().potencies,
+    }));
 }
 
 export async function listMedicines(opts: { category?: string; activeOnly?: boolean }): Promise<Medicine[]> {
   let q = query(collection(db, 'medicines'), orderBy('name', 'asc'));
-  if (opts.category && opts.category !== 'ALL') {
-    q = query(q, where('category', '==', opts.category));
-  }
-  if (opts.activeOnly) {
-    q = query(q, where('isActive', '==', true));
-  }
   
   const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as Medicine)).filter(m => !m.deletedAt);
+  let meds = snap.docs.map(d => ({ id: d.id, ...d.data() } as Medicine)).filter(m => !m.deletedAt);
+  
+  if (opts.category && opts.category !== 'ALL') {
+    meds = meds.filter(m => m.category === opts.category);
+  }
+  if (opts.activeOnly) {
+    meds = meds.filter(m => m.isActive === true);
+  }
+  return meds;
 }
 
 export async function createMedicine(data: Omit<Medicine, 'id' | 'createdAt' | 'updatedAt'>): Promise<Medicine> {
