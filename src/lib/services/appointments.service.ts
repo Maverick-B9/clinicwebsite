@@ -40,11 +40,10 @@ export async function listAppointments(opts: {
   const snap = await getDocs(
     query(
       collection(db, 'appointments'),
-      where('deletedAt', '==', null),
       where('scheduledAt', '>=', Timestamp.fromDate(opts.from)),
       where('scheduledAt', '<=', Timestamp.fromDate(opts.to)),
       orderBy('scheduledAt', 'asc'),
     ),
   );
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as Appointment));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as Appointment)).filter(a => a.deletedAt === null || a.deletedAt === undefined);
 }
