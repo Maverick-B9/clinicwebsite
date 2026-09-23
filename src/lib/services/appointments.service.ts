@@ -12,8 +12,9 @@ export async function createAppointment(
     ...data,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
+    deletedAt: null,
   });
-  return { id: ref.id, ...data, createdAt: new Date() as any, updatedAt: new Date() as any };
+  return { id: ref.id, ...data, createdAt: new Date() as any, updatedAt: new Date() as any, deletedAt: null };
 }
 
 export async function getAppointment(id: string): Promise<Appointment> {

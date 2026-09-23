@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { getPatient } from '../../lib/services/patients.service';
 import type { Patient, PaymentMethod } from '../../types';
@@ -25,6 +25,8 @@ export function NewVisitPage() {
   const [saved, setSaved] = useState(false);
   const [allergyDismissed, setAllergyDismissed] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
+  // Map RHF field.id → Firestore prescription doc ID
+  const firestoreIds = useRef<Record<string, string>>({});
 
   const methods = useForm({
     defaultValues: {
@@ -82,23 +84,30 @@ export function NewVisitPage() {
     });
 
     const prescriptions: any[] = methods.getValues('prescriptionItems') || [];
+    // fields from useFieldArray — we need the RHF field IDs to look up Firestore IDs
+    const fieldIds = (methods.getValues('prescriptionItems') || []).map((_: any, i: number) => i);
+
     for (let i = 0; i < prescriptions.length; i++) {
       const item = prescriptions[i];
+      if (!item.medicine && !item.medicineName) continue; // skip blank rows
       const mapped: any = {
-        medicineName: item.medicine,
+        medicineName: item.medicine || item.medicineName || '',
         potency: item.potency ?? '',
         dosage: item.dosage ?? '',
         repetition: item.repetition ?? '',
-        durationDays: item.durationDays ?? 5,
+        durationDays: Number(item.durationDays) || 5,
         beforeAfterFood: item.beforeAfterFood ?? 'AFTER',
         instructions: item.notes ?? '',
         sortOrder: i,
       };
-      if (!item.id) {
+      // Use the item's __firestoreId if it has one (set after first save)
+      const fsId = item.__firestoreId as string | undefined;
+      if (!fsId) {
         const newP = await addPrescriptionItem(patient.id, visitId, mapped);
-        item.id = newP.id;
+        // Write back so subsequent saves do updates
+        methods.setValue(`prescriptionItems.${i}.__firestoreId`, newP.id);
       } else {
-        await updatePrescriptionItem(patient.id, visitId, item.id, mapped);
+        await updatePrescriptionItem(patient.id, visitId, fsId, mapped);
       }
     }
 

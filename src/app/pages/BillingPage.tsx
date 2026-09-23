@@ -2,13 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { P } from '../utils/palette';
 import { Plus, TrendingUp, AlertCircle, DollarSign, Printer, MessageCircle, X, CheckCircle } from 'lucide-react';
 import { Btn, Card, StatCard, Bdg, Inp, Sel, fmtDate } from '../components/common/SharedUI';
-import { listInvoices } from '../../lib/services/invoices.service';
+import { listInvoices, recordPayment } from '../../lib/services/invoices.service';
 import { generateReceiptPDF } from '../../lib/pdf/receipt';
 import type { Invoice } from '../../types';
 
 export function BillingPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [payAmount, setPayAmount] = useState('');
+  const [payMethod, setPayMethod] = useState('Cash');
+  const [payRef, setPayRef] = useState('');
 
   useEffect(() => {
     listInvoices({}).then(setInvoices);
@@ -16,6 +20,28 @@ export function BillingPage() {
 
   const revenueThisMonth = invoices.reduce((sum, i) => sum + (i.amountPaid || 0), 0);
   const outstanding = invoices.reduce((sum, i) => sum + (i.amountDue || 0), 0);
+  
+  const handlePayment = async () => {
+    if (!selectedInvoice) return;
+    const amount = parseFloat(payAmount);
+    if (isNaN(amount) || amount <= 0) return;
+    
+    await recordPayment(selectedInvoice.id, {
+      amount,
+      method: payMethod as any,
+      reference: payRef,
+      paidAt: new Date() as any,
+      recordedBy: 'system',
+    });
+    
+    setSelectedInvoice(null);
+    setDrawerOpen(false);
+    setPayAmount('');
+    setPayRef('');
+    
+    const updated = await listInvoices({});
+    setInvoices(updated);
+  };
   
   return (
     <div>
@@ -50,7 +76,11 @@ export function BillingPage() {
                   <div style={{ display:"flex", gap:4 }}>
                     <Btn variant="ghost" size="sm" icon={<Printer size={12}/>} onClick={() => generateReceiptPDF(inv, {})} />
                     <Btn variant="ghost" size="sm" icon={<MessageCircle size={12}/>}/>
-                    {inv.status !== "PAID" && <Btn variant="subtle" size="sm" onClick={() => setDrawerOpen(true)}>Record</Btn>}
+                    {inv.status !== "PAID" && <Btn variant="subtle" size="sm" onClick={() => {
+                      setSelectedInvoice(inv);
+                      setPayAmount(inv.amountDue.toString());
+                      setDrawerOpen(true);
+                    }}>Record</Btn>}
                   </div>
                 </td>
               </tr>
@@ -67,10 +97,10 @@ export function BillingPage() {
               <button onClick={() => setDrawerOpen(false)} style={{ background:"none", border:"none", cursor:"pointer", color:P.textMuted, display:"flex" }}><X size={18}/></button>
             </div>
             <div style={{ padding:20, flex:1, display:"flex", flexDirection:"column", gap:16 }}>
-              <Inp label="Amount received" pre={<span style={{ fontFamily:"JetBrains Mono, monospace", fontSize:12 }}>₹</span>} placeholder="400"/>
-              <Sel label="Payment method" options={["Cash","UPI","Card","Insurance"].map(m => ({ value:m, label:m }))}/>
-              <Inp label="Reference / UPI ID" placeholder="Optional"/>
-              <Btn variant="primary" fullWidth icon={<CheckCircle size={14}/>} onClick={() => setDrawerOpen(false)}>Generate receipt</Btn>
+              <Inp label="Amount received" pre={<span style={{ fontFamily:"JetBrains Mono, monospace", fontSize:12 }}>₹</span>} value={payAmount} onChange={setPayAmount} placeholder="400"/>
+              <Sel label="Payment method" value={payMethod} onChange={setPayMethod} options={["Cash","UPI","Card","Insurance"].map(m => ({ value:m, label:m }))}/>
+              <Inp label="Reference / UPI ID" value={payRef} onChange={setPayRef} placeholder="Optional"/>
+              <Btn variant="primary" fullWidth icon={<CheckCircle size={14}/>} onClick={handlePayment}>Record Payment</Btn>
             </div>
           </div>
         </div>
