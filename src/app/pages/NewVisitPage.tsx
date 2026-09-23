@@ -8,6 +8,7 @@ import { SectionCard, Btn, Inp, Sel, Bdg } from '../components/common/SharedUI';
 import { DiagnosesCard } from '../components/visits/DiagnosesCard';
 import { PrescriptionCard } from '../components/visits/PrescriptionCard';
 import { ClinicalNotesCard } from '../components/visits/ClinicalNotesCard';
+import { PreviousVisitsPanel } from '../components/visits/PreviousVisitsPanel';
 import { SignaturePad } from '../components/visits/SignaturePad';
 import { FormProvider, useForm } from 'react-hook-form';
 import { createVisit, saveVisit, saveSignature } from '../../lib/services/visits.service';
@@ -165,6 +166,9 @@ export function NewVisitPage() {
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 920 }}>
           <DiagnosesCard patientId={patient.id} visitId={visitId} />
+          {visitId && (
+            <PreviousVisitsPanel patientId={patient.id} currentVisitId={visitId} />
+          )}
           <ClinicalNotesCard
             patientId={patient.id}
             visitId={visitId}

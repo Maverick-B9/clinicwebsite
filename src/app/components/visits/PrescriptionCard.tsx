@@ -60,7 +60,7 @@ function ComboInput({
       />
       {!readOnly && <span style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: P.textMuted, fontSize: 10 }}>▾</span>}
       {open && filtered.length > 0 && (
-        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: P.bgSurface, border: `1px solid ${P.border}`, borderRadius: 6, boxShadow: '0 4px 12px rgba(28,26,23,0.10)', zIndex: 50, maxHeight: 180, overflowY: 'auto', marginTop: 2 }}>
+        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: P.bgSurface, border: `1px solid ${P.border}`, borderRadius: 6, boxShadow: '0 4px 12px rgba(28,26,23,0.10)', zIndex: 1000, maxHeight: 180, overflowY: 'auto', marginTop: 2 }}>
           {filtered.map(opt => (
             <div
               key={opt}
@@ -87,6 +87,7 @@ export function PrescriptionCard({ readOnly = false }: { readOnly?: boolean }) {
 
   const [searchResults, setSearchResults] = useState<Record<number, SearchResult[]>>({});
   const [activeSearch, setActiveSearch] = useState<number | null>(null);
+  const [availablePotencies, setAvailablePotencies] = useState<Record<number, string[]>>({});
 
   const handleSearch = async (index: number, q: string) => {
     if (q.length < 2) {
@@ -99,7 +100,8 @@ export function PrescriptionCard({ readOnly = false }: { readOnly?: boolean }) {
 
   const selectMedicine = (index: number, medicine: SearchResult) => {
     setValue(`prescriptionItems.${index}.medicine`, medicine.name);
-    setValue(`prescriptionItems.${index}.potency`, medicine.potencies[0] || '30C');
+    setValue(`prescriptionItems.${index}.potency`, ''); // clear — let doctor pick from available
+    setAvailablePotencies(prev => ({ ...prev, [index]: medicine.potencies }));
     setSearchResults(prev => ({ ...prev, [index]: [] }));
     setActiveSearch(null);
   };
@@ -112,7 +114,7 @@ export function PrescriptionCard({ readOnly = false }: { readOnly?: boolean }) {
   ];
 
   return (
-    <div style={{ background: P.bgSurface, border: `1px solid ${P.border}`, borderRadius: 12, overflow: 'hidden', marginBottom: 20, boxShadow: '0 1px 3px rgba(28,26,23,0.04)' }}>
+    <div style={{ background: P.bgSurface, border: `1px solid ${P.border}`, borderRadius: 12, overflow: 'visible', marginBottom: 20, boxShadow: '0 1px 3px rgba(28,26,23,0.04)' }}>
       <div style={{ padding: '16px 20px', borderBottom: `1px solid ${P.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ fontSize: 14, fontWeight: 500, color: P.textPrimary }}>Prescription</span>
         {!readOnly && (
@@ -125,7 +127,7 @@ export function PrescriptionCard({ readOnly = false }: { readOnly?: boolean }) {
           </button>
         )}
       </div>
-      <div style={{ overflowX: 'auto' }}>
+      <div style={{ overflowX: 'auto', overflowY: 'visible' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
           <thead>
             <tr>
@@ -147,7 +149,7 @@ export function PrescriptionCard({ readOnly = false }: { readOnly?: boolean }) {
                     <GripVertical size={16} />
                   </td>
                 )}
-                <td style={{ padding: '8px', position: 'relative' }}>
+                <td style={{ padding: '8px', position: 'relative', zIndex: 1001 }}>
                   <input
                     {...register(`prescriptionItems.${index}.medicine`)}
                     readOnly={readOnly}
@@ -160,7 +162,7 @@ export function PrescriptionCard({ readOnly = false }: { readOnly?: boolean }) {
                     style={{ width: '100%', padding: '0 10px', height: 34, background: P.bgSunken, border: `1px solid ${P.border}`, borderRadius: 6, fontSize: 13, color: P.textPrimary, fontFamily: 'inherit', outline: 'none' }}
                   />
                   {activeSearch === index && searchResults[index]?.length > 0 && (
-                    <div style={{ position: 'absolute', top: '100%', left: 8, right: 8, background: P.bgSurface, border: `1px solid ${P.border}`, borderRadius: 8, boxShadow: '0 4px 12px rgba(28,26,23,0.1)', zIndex: 10, maxHeight: 200, overflowY: 'auto', marginTop: 4 }}>
+                    <div style={{ position: 'absolute', top: '100%', left: 8, right: 8, background: P.bgSurface, border: `1px solid ${P.border}`, borderRadius: 8, boxShadow: '0 4px 12px rgba(28,26,23,0.1)', zIndex: 1000, maxHeight: 200, overflowY: 'auto', marginTop: 4 }}>
                       {searchResults[index].map(med => (
                         <div
                           key={med.id}
@@ -175,14 +177,32 @@ export function PrescriptionCard({ readOnly = false }: { readOnly?: boolean }) {
                     </div>
                   )}
                 </td>
-                <td style={{ padding: '8px' }}>
-                  <ComboInput
-                    value={watch(`prescriptionItems.${index}.potency`) || ''}
-                    onChange={v => setValue(`prescriptionItems.${index}.potency`, v)}
-                    options={POTENCY_OPTIONS}
-                    placeholder="30C"
-                    readOnly={readOnly}
-                  />
+                <td style={{ padding: '8px', position: 'relative' }}>
+                  {availablePotencies[index] && availablePotencies[index].length > 0 ? (
+                    <select
+                      {...register(`prescriptionItems.${index}.potency`)}
+                      disabled={readOnly}
+                      style={{
+                        width: '100%', padding: '0 6px', height: 34, background: P.bgSunken,
+                        border: `1px solid ${P.border}`, borderRadius: 6, fontSize: 12,
+                        color: P.textPrimary, outline: 'none',
+                        cursor: readOnly ? 'default' : 'pointer', fontFamily: 'inherit',
+                      }}
+                    >
+                      <option value="">Select potency</option>
+                      {availablePotencies[index].map(p => (
+                        <option key={p} value={p}>{p}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <ComboInput
+                      value={watch(`prescriptionItems.${index}.potency`) || ''}
+                      onChange={v => setValue(`prescriptionItems.${index}.potency`, v)}
+                      options={POTENCY_OPTIONS}
+                      placeholder="30C"
+                      readOnly={readOnly}
+                    />
+                  )}
                 </td>
                 <td style={{ padding: '8px' }}>
                   <ComboInput

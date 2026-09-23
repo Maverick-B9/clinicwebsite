@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { getPatient } from '../../lib/services/patients.service';
-import { getVisit, updateVisit } from '../../lib/services/visits.service';
+import { getVisit, updateVisit, saveVisit } from '../../lib/services/visits.service';
 import { listDiagnoses } from '../../lib/services/diagnoses.service';
-import { listPrescriptionItems } from '../../lib/services/prescriptions.service';
+import { listPrescriptionItems, addPrescriptionItem, updatePrescriptionItem } from '../../lib/services/prescriptions.service';
 import type { Patient, Visit, PaymentMethod } from '../../types';
 import { P } from '../utils/palette';
-import { ArrowLeft, AlertTriangle, Lock } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, Lock, Edit2, CheckCircle } from 'lucide-react';
 import { SectionCard, Btn, Inp, Sel, Bdg } from '../components/common/SharedUI';
 import { DiagnosesCard } from '../components/visits/DiagnosesCard';
 import { PrescriptionCard } from '../components/visits/PrescriptionCard';
@@ -19,6 +19,7 @@ export function VisitDetailPage() {
   const [patient, setPatient] = useState<Patient | null>(null);
   const [visit, setVisit] = useState<Visit | null>(null);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   const methods = useForm({
     defaultValues: {
@@ -78,6 +79,50 @@ export function VisitDetailPage() {
     });
   }, [patientId, visitId]);
 
+  const handleSaveEdits = async () => {
+    if (!patientId || !visitId) return;
+    const values = methods.getValues();
+    const totalFee =
+      parseFloat(values.consultationFee || '0') +
+      parseFloat(values.medicineFee || '0') -
+      parseFloat(values.discount || '0');
+
+    await saveVisit(patientId, visitId, {
+      consultationFee: parseFloat(values.consultationFee || '0'),
+      medicineFee: parseFloat(values.medicineFee || '0'),
+      discount: parseFloat(values.discount || '0'),
+      paidAmount: parseFloat(values.paidAmount || '0'),
+      followUpDays: parseInt(values.followupDays || '0'),
+      visitNotes: values.visitNotes || '',
+      visitDate: values.visitDate || '',
+      totalFee,
+      isDraft: false,
+    });
+
+    const prescriptions: any[] = values.prescriptionItems || [];
+    for (let i = 0; i < prescriptions.length; i++) {
+      const item = prescriptions[i];
+      const firestoreItem = {
+        medicineName: item.medicine || item.medicineName || '',
+        potency: item.potency || '',
+        dosage: item.dosage || '',
+        repetition: item.repetition || '',
+        durationDays: Number(item.durationDays) || 0,
+        beforeAfterFood: item.beforeAfterFood || 'AFTER',
+        instructions: item.notes || '',
+        sortOrder: i,
+      };
+      if (!firestoreItem.medicineName) continue;
+      if (!item.id) {
+        await addPrescriptionItem(patientId, visitId, firestoreItem);
+      } else {
+        await updatePrescriptionItem(patientId, visitId, item.id, firestoreItem);
+      }
+    }
+
+    setIsEditing(false);
+  };
+
   if (!patient || !visit || !dataLoaded) {
     return (
       <div style={{ padding: 40, textAlign: 'center', color: P.textMuted, fontSize: 13 }}>
@@ -85,6 +130,8 @@ export function VisitDetailPage() {
       </div>
     );
   }
+
+  const readOnly = visit?.isLocked && !isEditing;
 
   const visitDate = methods.watch('visitDate');
   const consultFee = methods.watch('consultationFee');
@@ -126,12 +173,38 @@ export function VisitDetailPage() {
                 {visit.isLocked && <span style={{ marginLeft: 6 }}>[Locked]</span>}
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 16 }}>
-              <span style={{ fontSize: 12, color: P.textMuted }}>Visit date:</span>
-              <span style={{ fontSize: 12, color: P.textPrimary, fontFamily: 'JetBrains Mono, monospace' }}>{visitDate}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {!readOnly && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 12, color: P.textMuted }}>Visit date:</span>
+                  {isEditing ? (
+                    <input
+                      type="date"
+                      {...methods.register('visitDate')}
+                      style={{ height: 28, padding: '0 8px', background: P.bgSunken, border: `1px solid ${P.border}`, borderRadius: 6, fontSize: 12, color: P.textPrimary, fontFamily: 'inherit', outline: 'none' }}
+                    />
+                  ) : (
+                    <span style={{ fontSize: 12, color: P.textPrimary, fontFamily: 'JetBrains Mono, monospace' }}>{visitDate}</span>
+                  )}
+                </div>
+              )}
+              {readOnly && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 12, color: P.textMuted }}>Visit date:</span>
+                  <span style={{ fontSize: 12, color: P.textPrimary, fontFamily: 'JetBrains Mono, monospace' }}>{visitDate}</span>
+                </div>
+              )}
             </div>
           </div>
-          <Btn variant="ghost" size="sm" onClick={() => navigate(`/patients/${patient.id}`)}>Back to profile</Btn>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {!visit?.isLocked && !isEditing && (
+              <Btn variant="secondary" size="sm" icon={<Edit2 size={13} />} onClick={() => setIsEditing(true)}>Edit visit</Btn>
+            )}
+            {isEditing && (
+              <Btn variant="primary" size="sm" icon={<CheckCircle size={13} />} onClick={handleSaveEdits}>Save changes</Btn>
+            )}
+            <Btn variant="ghost" size="sm" onClick={() => navigate(`/patients/${patient.id}`)}>Back to profile</Btn>
+          </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 920 }}>
           <DiagnosesCard patientId={patient.id} visitId={visitId!} disableAutoAppend={true} />
@@ -140,14 +213,14 @@ export function VisitDetailPage() {
             visitId={visitId!}
             visitNumber={visit.visitNumber}
             visitDate={visitDate || new Date().toISOString().split('T')[0]}
-            readOnly={true}
+            readOnly={readOnly || false}
           />
-          <PrescriptionCard readOnly={true} />
+          <PrescriptionCard readOnly={readOnly || false} />
           <SectionCard title="Fee & Payment">
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 14 }}>
-              <Inp label="Consultation fee" readOnly pre={<span style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace' }}>₹</span>} value={consultFee} onChange={() => {}} />
-              <Inp label="Medicine fee" readOnly pre={<span style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace' }}>₹</span>} value={medicineFee} onChange={() => {}} />
-              <Inp label="Discount" readOnly pre={<span style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace' }}>₹</span>} value={discount} onChange={() => {}} />
+              <Inp label="Consultation fee" readOnly={readOnly || false} pre={<span style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace' }}>₹</span>} value={consultFee} onChange={v => methods.setValue('consultationFee', v)} />
+              <Inp label="Medicine fee" readOnly={readOnly || false} pre={<span style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace' }}>₹</span>} value={medicineFee} onChange={v => methods.setValue('medicineFee', v)} />
+              <Inp label="Discount" readOnly={readOnly || false} pre={<span style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace' }}>₹</span>} value={discount} onChange={v => methods.setValue('discount', v)} />
             </div>
             <div style={{ background: P.bgSunken, borderRadius: 8, padding: '10px 14px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12, marginBottom: 16 }}>
               <span style={{ fontSize: 12, color: P.textSecondary }}>Total Amount:</span>
@@ -157,11 +230,9 @@ export function VisitDetailPage() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
               <Sel label="Payment Method" value={visit.paymentMethod || 'CASH'} onChange={() => {}} options={PAYMENT_METHODS.map(m => ({ value: m, label: m }))} />
-              <Inp label="Paid Amount" readOnly pre={<span style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace' }}>₹</span>} value={paidAmount} onChange={() => {}} />
+              <Inp label="Paid Amount" readOnly={readOnly || false} pre={<span style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace' }}>₹</span>} value={paidAmount} onChange={v => methods.setValue('paidAmount', v)} />
             </div>
-            {methods.watch('visitNotes') && (
-              <Inp label="Visit Notes" readOnly value={methods.watch('visitNotes')} onChange={() => {}} />
-            )}
+            <Inp label="Visit Notes" readOnly={readOnly || false} value={methods.watch('visitNotes')} onChange={v => methods.setValue('visitNotes', v)} />
           </SectionCard>
         </div>
       </div>
