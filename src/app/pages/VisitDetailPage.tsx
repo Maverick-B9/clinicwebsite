@@ -34,6 +34,7 @@ export function VisitDetailPage() {
       visitNotes: '',
       clinicalNotes: '',
       visitDate: new Date().toISOString().split('T')[0],
+      paymentMethod: 'CASH',
     },
   });
 
@@ -70,6 +71,7 @@ export function VisitDetailPage() {
         visitNotes: v.visitNotes ?? '',
         clinicalNotes: v.clinicalNotes ?? '',
         visitDate: v.visitDate ?? new Date().toISOString().split('T')[0],
+        paymentMethod: v.paymentMethod ?? 'CASH',
       });
       // Set dataLoaded LAST — after patient+visit+reset are all done
       setDataLoaded(true);
@@ -87,14 +89,22 @@ export function VisitDetailPage() {
       parseFloat(values.medicineFee || '0') -
       parseFloat(values.discount || '0');
 
+    const paid = parseFloat(values.paidAmount || '0');
+    const due = totalFee - paid;
+    let paymentStatus = 'PENDING';
+    if (paid >= totalFee && totalFee > 0) paymentStatus = 'PAID';
+    else if (paid > 0 && due > 0) paymentStatus = 'PARTIAL';
+
     await saveVisit(patientId, visitId, {
       consultationFee: parseFloat(values.consultationFee || '0'),
       medicineFee: parseFloat(values.medicineFee || '0'),
       discount: parseFloat(values.discount || '0'),
-      paidAmount: parseFloat(values.paidAmount || '0'),
+      paidAmount: paid,
       followUpDays: parseInt(values.followupDays || '0'),
       visitNotes: values.visitNotes || '',
       visitDate: values.visitDate || '',
+      paymentMethod: values.paymentMethod as any,
+      paymentStatus: paymentStatus as any,
       totalFee,
       isDraft: false,
     });
@@ -229,7 +239,7 @@ export function VisitDetailPage() {
               <Bdg variant={statusVariant}>{paymentStatus}</Bdg>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-              <Sel label="Payment Method" value={visit.paymentMethod || 'CASH'} onChange={() => {}} options={PAYMENT_METHODS.map(m => ({ value: m, label: m }))} />
+              <Sel label="Payment Method" value={methods.watch('paymentMethod')} onChange={v => methods.setValue('paymentMethod', v)} options={PAYMENT_METHODS.map(m => ({ value: m, label: m }))} />
               <Inp label="Paid Amount" readOnly={readOnly || false} pre={<span style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace' }}>₹</span>} value={paidAmount} onChange={v => methods.setValue('paidAmount', v)} />
             </div>
             <Inp label="Visit Notes" readOnly={readOnly || false} value={methods.watch('visitNotes')} onChange={v => methods.setValue('visitNotes', v)} />

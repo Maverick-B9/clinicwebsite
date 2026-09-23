@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { getPatient, softDeletePatient } from '../../lib/services/patients.service';
 import { listVisits } from '../../lib/services/visits.service';
+import { listInvoices } from '../../lib/services/invoices.service';
 import { generateQRCardPDF } from '../../lib/pdf/qrcode';
-import type { Patient, Visit } from '../../types';
+import type { Patient, Visit, Invoice } from '../../types';
 import { P } from '../utils/palette';
-import { ArrowLeft, AlertTriangle, Printer, Plus, Trash, FileText, Edit } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, Printer, Plus, Trash, FileText, Edit, Receipt } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
 import { Card, Av, Bdg, Btn, fmtDate } from '../components/common/SharedUI';
 
@@ -15,12 +16,14 @@ export function PatientProfilePage() {
   const { user } = useAuthStore();
   const [patient, setPatient] = useState<Patient | null>(null);
   const [visits, setVisits] = useState<Visit[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [tab, setTab] = useState<'overview' | 'visits' | 'prescriptions' | 'docs' | 'billing'>('overview');
 
   useEffect(() => {
     if (patientId) {
       getPatient(patientId).then(setPatient);
       listVisits(patientId).then(setVisits);
+      listInvoices({}).then(all => setInvoices(all.filter(i => i.patientId === patientId)));
     }
   }, [patientId]);
 
@@ -125,6 +128,37 @@ export function PatientProfilePage() {
                       </div>
                     </div>
                     <Btn variant="subtle" size="sm" onClick={() => navigate(`/patients/${patient.id}/visits/${v.id}`)}>View details</Btn>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+          {tab === 'billing' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {invoices.length === 0 ? (
+                <div style={{ color: P.textMuted, fontSize: 13, padding: '20px 0' }}>No billing history found</div>
+              ) : (
+                invoices.map(inv => (
+                  <div key={inv.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', border: `1px solid ${P.border}`, borderRadius: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ width: 40, height: 40, background: P.bgSunken, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: P.slate }}>
+                        <Receipt size={18} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 500, color: P.textPrimary }}>
+                          {inv.invoiceNumber}
+                        </div>
+                        <div style={{ fontSize: 12, color: P.textSecondary }}>
+                          {inv.createdAt ? fmtDate(inv.createdAt) : '—'} · Total: ₹{inv.total}
+                        </div>
+                        <div style={{ fontSize: 11, color: P.textMuted, marginTop: 2 }}>
+                          Paid: ₹{inv.amountPaid} · Due: ₹{inv.amountDue}
+                          <span style={{ marginLeft: 6, color: inv.status === 'PAID' ? P.sage : inv.status === 'PARTIAL' ? P.ochre : P.sienna }}>
+                            ({inv.status})
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 ))
               )}

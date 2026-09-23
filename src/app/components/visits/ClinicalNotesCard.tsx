@@ -25,6 +25,8 @@ export function ClinicalNotesCard({ patientId, visitId, visitNumber, visitDate, 
   const [entries, setEntries] = useState<SymptomEntry[]>([]);
   const [nextNumber, setNextNumber] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [savingIndices, setSavingIndices] = useState<number[]>([]);
+  const [savedIndices, setSavedIndices] = useState<number[]>([]);
 
   useEffect(() => {
     listPatientSymptoms(patientId).then(symptoms => {
@@ -84,15 +86,26 @@ export function ClinicalNotesCard({ patientId, visitId, visitNumber, visitDate, 
   const saveEntry = async (index: number) => {
     const entry = entries[index];
     if (!entry.symptomLabel.trim() || !entry.notes.trim()) return;
-    await saveSymptomNote(patientId, {
-      symptomNumber: entry.symptomNumber,
-      symptomLabel: entry.symptomLabel,
-      patientId,
-      visitId,
-      visitDate,
-      visitNumber,
-      notes: entry.notes,
-    });
+    
+    setSavingIndices(prev => [...prev, index]);
+    try {
+      await saveSymptomNote(patientId, {
+        symptomNumber: entry.symptomNumber,
+        symptomLabel: entry.symptomLabel,
+        patientId,
+        visitId,
+        visitDate,
+        visitNumber,
+        notes: entry.notes,
+      });
+      setSavedIndices(prev => [...prev, index]);
+      setTimeout(() => setSavedIndices(prev => prev.filter(i => i !== index)), 2000);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to save note');
+    } finally {
+      setSavingIndices(prev => prev.filter(i => i !== index));
+    }
   };
 
   const removeEntry = (index: number) => {
@@ -223,9 +236,10 @@ export function ClinicalNotesCard({ patientId, visitId, visitNumber, visitDate, 
                   <button
                     type="button"
                     onClick={() => saveEntry(index)}
-                    style={{ background: P.sage, border: 'none', color: '#fff', padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}
+                    disabled={savingIndices.includes(index)}
+                    style={{ background: savedIndices.includes(index) ? '#10b981' : P.sage, border: 'none', color: '#fff', padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: savingIndices.includes(index) ? 'default' : 'pointer', opacity: savingIndices.includes(index) ? 0.7 : 1 }}
                   >
-                    Save Note
+                    {savingIndices.includes(index) ? 'Saving...' : savedIndices.includes(index) ? 'Saved ✓' : 'Save Note'}
                   </button>
                 </div>
               )}
