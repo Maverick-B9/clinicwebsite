@@ -213,13 +213,22 @@ export function ClinicalNotesCard({ patientId, visitId, visitNumber, visitDate, 
               <textarea
                 value={entry.notes}
                 onChange={e => updateEntry(index, 'notes', e.target.value)}
-                onBlur={() => !readOnly && saveEntry(index)}
                 placeholder={`Notes for symptom #${entry.symptomNumber} in this visit...`}
                 rows={3}
                 readOnly={readOnly}
                 style={{ width: '100%', padding: '8px 10px', background: P.bgSunken, border: `1px solid ${P.border}`, borderRadius: 6, fontSize: 13, color: P.textPrimary, fontFamily: 'inherit', outline: 'none', resize: readOnly ? 'none' : 'vertical', boxSizing: 'border-box' }}
               />
-              {!readOnly && <div style={{ fontSize: 10, color: P.textMuted, marginTop: 3 }}>Auto-saves on blur</div>}
+              {!readOnly && (
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => saveEntry(index)}
+                    style={{ background: P.sage, border: 'none', color: '#fff', padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}
+                  >
+                    Save Note
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         ))}
