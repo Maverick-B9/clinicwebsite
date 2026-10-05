@@ -3,7 +3,7 @@ import {
   query, where, orderBy, runTransaction, serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import type { Invoice, Payment, Visit, Patient } from '../../types';
+import type { Invoice, Payment, Visit, Patient, PaymentStatus } from '../../types';
 
 export async function generateInvoiceNumber(): Promise<string> {
   const seqRef = doc(db, 'sequences', 'invoices');
@@ -62,13 +62,14 @@ export async function upsertInvoiceForVisit(
     };
     await addDoc(collection(db, 'invoices'), docData);
   } else {
-    // Update existing
+    // Update existing — use the new paidAmount from visitData if provided
     const invoiceDoc = invoicesSnap.docs[0];
     const existingData = invoiceDoc.data() as Invoice;
-    const amountDue = total - existingData.amountPaid;
-    let status = existingData.status;
+    const newAmountPaid = visitData.paidAmount !== undefined ? visitData.paidAmount : existingData.amountPaid;
+    const amountDue = Math.max(0, total - newAmountPaid);
+    let status: PaymentStatus;
     if (amountDue <= 0) status = 'PAID';
-    else if (existingData.amountPaid > 0) status = 'PARTIAL';
+    else if (newAmountPaid > 0) status = 'PARTIAL';
     else status = 'PENDING';
 
     await updateDoc(invoiceDoc.ref, {
@@ -78,6 +79,7 @@ export async function upsertInvoiceForVisit(
       subtotal,
       gstAmount,
       total,
+      amountPaid: newAmountPaid,
       amountDue,
       status,
       updatedAt: serverTimestamp(),
@@ -96,21 +98,34 @@ export async function recordPayment(
 
     const invoice = invoiceSnap.data() as Invoice;
     const newAmountPaid = invoice.amountPaid + payment.amount;
-    const newAmountDue = invoice.total - newAmountPaid;
-    
-    let status = invoice.status;
+    const newAmountDue = Math.max(0, invoice.total - newAmountPaid);
+
+    let status: PaymentStatus;
     if (newAmountDue <= 0) status = 'PAID';
     else if (newAmountPaid > 0) status = 'PARTIAL';
+    else status = 'PENDING';
 
+    // Log payment sub-doc
     const paymentRef = doc(collection(invoiceRef, 'payments'));
-    tx.set(paymentRef, payment);
+    tx.set(paymentRef, { ...payment, createdAt: serverTimestamp() });
 
+    // Update the invoice
     tx.update(invoiceRef, {
       amountPaid: newAmountPaid,
       amountDue: newAmountDue,
       status,
       updatedAt: serverTimestamp(),
     });
+
+    // Also sync paymentStatus + paidAmount back to the visit document
+    if (invoice.visitId && invoice.patientId) {
+      const visitRef = doc(db, 'patients', invoice.patientId, 'visits', invoice.visitId);
+      tx.update(visitRef, {
+        paymentStatus: status,
+        paidAmount: newAmountPaid,
+        updatedAt: serverTimestamp(),
+      });
+    }
   });
 }
 
