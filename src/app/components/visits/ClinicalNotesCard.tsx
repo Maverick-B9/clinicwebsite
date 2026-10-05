@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { P } from '../../utils/palette';
 import { Plus, ChevronDown, ChevronUp, History } from 'lucide-react';
 import { listPatientSymptoms, getSymptomHistory, saveSymptomNote } from '../../../lib/services/symptoms.service';
+import { getDocs, collection, query, orderBy } from 'firebase/firestore';
+import { db } from '../../../lib/firebase';
 
 interface Props {
   patientId: string;
@@ -20,6 +22,23 @@ interface SymptomEntry {
   history: { visitNumber: number; visitDate: string; notes: string }[];
 }
 
+async function loadExistingNotesForVisit(patientId: string, visitId: string): Promise<{ symptomNumber: number; symptomLabel: string; notes: string }[]> {
+  const snap = await getDocs(
+    query(
+      collection(db, 'patients', patientId, 'symptomNotes'),
+      orderBy('symptomNumber', 'asc'),
+    ),
+  );
+  return snap.docs
+    .map(d => d.data() as any)
+    .filter(d => d.visitId === visitId)
+    .map(d => ({
+      symptomNumber: d.symptomNumber,
+      symptomLabel: d.symptomLabel,
+      notes: d.notes,
+    }));
+}
+
 export function ClinicalNotesCard({ patientId, visitId, visitNumber, visitDate, readOnly = false }: Props) {
   const [existingSymptoms, setExistingSymptoms] = useState<{ number: number; label: string }[]>([]);
   const [entries, setEntries] = useState<SymptomEntry[]>([]);
@@ -29,13 +48,32 @@ export function ClinicalNotesCard({ patientId, visitId, visitNumber, visitDate, 
   const [savedIndices, setSavedIndices] = useState<number[]>([]);
 
   useEffect(() => {
-    listPatientSymptoms(patientId).then(symptoms => {
+    async function init() {
+      const [symptoms, existingNotes] = await Promise.all([
+        listPatientSymptoms(patientId),
+        loadExistingNotesForVisit(patientId, visitId),
+      ]);
+
       setExistingSymptoms(symptoms);
       const maxNum = symptoms.length > 0 ? Math.max(...symptoms.map(s => s.number)) : 0;
       setNextNumber(maxNum + 1);
+
+      // Pre-populate entries with notes already saved for this visit
+      if (existingNotes.length > 0) {
+        setEntries(existingNotes.map(n => ({
+          symptomNumber: n.symptomNumber,
+          symptomLabel: n.symptomLabel,
+          notes: n.notes,
+          isNew: false,
+          showHistory: false,
+          history: [],
+        })));
+      }
+
       setLoading(false);
-    });
-  }, [patientId]);
+    }
+    init();
+  }, [patientId, visitId]);
 
   const addNewSymptom = () => {
     setEntries(prev => [...prev, {
@@ -86,7 +124,7 @@ export function ClinicalNotesCard({ patientId, visitId, visitNumber, visitDate, 
   const saveEntry = async (index: number) => {
     const entry = entries[index];
     if (!entry.symptomLabel.trim() || !entry.notes.trim()) return;
-    
+
     setSavingIndices(prev => [...prev, index]);
     try {
       await saveSymptomNote(patientId, {
@@ -134,7 +172,7 @@ export function ClinicalNotesCard({ patientId, visitId, visitNumber, visitDate, 
 
       {existingSymptoms.length > 0 && !readOnly && (
         <div style={{ padding: '10px 20px', borderBottom: `1px solid ${P.border}`, background: P.bgSunken }}>
-          <div style={{ fontSize: 11, color: P.textMuted, marginBottom: 6 }}>Symptoms from previous visits â€” click to add notes:</div>
+          <div style={{ fontSize: 11, color: P.textMuted, marginBottom: 6 }}>Symptoms from previous visits — click to add notes:</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {existingSymptoms.map(sym => {
               const added = !!entries.find(e => e.symptomNumber === sym.number);
@@ -153,7 +191,7 @@ export function ClinicalNotesCard({ patientId, visitId, visitNumber, visitDate, 
                     fontFamily: 'inherit',
                   }}
                 >
-                  #{sym.number} â€” {sym.label}
+                  #{sym.number} — {sym.label}
                 </button>
               );
             })}
@@ -200,7 +238,7 @@ export function ClinicalNotesCard({ patientId, visitId, visitNumber, visitDate, 
                   onClick={() => removeEntry(index)}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: P.textMuted, display: 'flex', fontSize: 14, lineHeight: 1 }}
                 >
-                  âœ•
+                  ?
                 </button>
               )}
             </div>
@@ -210,7 +248,7 @@ export function ClinicalNotesCard({ patientId, visitId, visitNumber, visitDate, 
                 <div style={{ fontSize: 11, fontWeight: 500, color: P.textMuted, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Previous notes for this symptom</div>
                 {entry.history.map((h, hi) => (
                   <div key={hi} style={{ padding: '6px 0', borderBottom: hi < entry.history.length - 1 ? `1px solid ${P.border}` : 'none' }}>
-                    <div style={{ fontSize: 11, color: P.textMuted, marginBottom: 2 }}>Visit #{h.visitNumber} â€” {h.visitDate}</div>
+                    <div style={{ fontSize: 11, color: P.textMuted, marginBottom: 2 }}>Visit #{h.visitNumber} — {h.visitDate}</div>
                     <div style={{ fontSize: 13, color: P.textPrimary }}>{h.notes}</div>
                   </div>
                 ))}
@@ -239,7 +277,7 @@ export function ClinicalNotesCard({ patientId, visitId, visitNumber, visitDate, 
                     disabled={savingIndices.includes(index)}
                     style={{ background: savedIndices.includes(index) ? '#10b981' : P.sage, border: 'none', color: '#fff', padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: savingIndices.includes(index) ? 'default' : 'pointer', opacity: savingIndices.includes(index) ? 0.7 : 1 }}
                   >
-                    {savingIndices.includes(index) ? 'Saving...' : savedIndices.includes(index) ? 'Saved âœ“' : 'Save Note'}
+                    {savingIndices.includes(index) ? 'Saving...' : savedIndices.includes(index) ? 'Saved ?' : 'Save Note'}
                   </button>
                 </div>
               )}
