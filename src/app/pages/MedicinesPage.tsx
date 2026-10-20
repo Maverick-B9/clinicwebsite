@@ -169,11 +169,11 @@ export function MedicinesPage() {
             ) : rows.map(m => (
               <tr key={m.id} style={{ borderBottom: `1px solid ${P.border}` }}>
                 <td style={{ padding: '10px 16px', fontSize: 13, fontWeight: 500, color: P.textPrimary }}>{m.name}</td>
-                <td style={{ padding: '10px 16px', fontSize: 12, color: P.textSecondary }}>{m.manufacturer || '—'}</td>
+                <td style={{ padding: '10px 16px', fontSize: 12, color: P.textSecondary }}>{m.manufacturer || 'Â—'}</td>
                 <td style={{ padding: '10px 16px' }}>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                     {(m.potencies ?? []).length === 0
-                      ? <span style={{ fontSize: 12, color: P.textMuted }}>—</span>
+                      ? <span style={{ fontSize: 12, color: P.textMuted }}>Â—</span>
                       : (m.potencies ?? []).map(p => (
                         <span key={p} style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, background: P.bgSunken, color: P.textSecondary, padding: '1px 6px', borderRadius: 4, border: `1px solid ${P.border}` }}>{p}</span>
                       ))}

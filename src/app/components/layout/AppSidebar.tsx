@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useAuthStore } from '../../../store/auth.store';
-import { Home, Users, Plus, Stethoscope, Calendar, Receipt, BarChart2, Pill, Settings, LogOut } from 'lucide-react';
+import { Home, Users, Plus, Stethoscope, Calendar, Receipt, BarChart2, Pill, Settings, LogOut, X } from 'lucide-react';
 import { Logo } from '../common/Logo';
 
 const P = {
@@ -38,7 +38,7 @@ function Bdg({ variant = "neutral", size = "sm", children }: { variant?: "sage" 
   return <span style={{ background:bg, color, fontSize:size==="xs"?10:11, fontWeight:500, padding:size==="xs"?"1px 6px":"2px 8px", borderRadius:999, letterSpacing:"0.03em", display:"inline-flex", alignItems:"center", whiteSpace:"nowrap", gap:3 }}>{children}</span>;
 }
 
-export function AppSidebar() {
+export function AppSidebar({ onClose }: { onClose?: () => void } = {}) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
@@ -52,12 +52,19 @@ export function AppSidebar() {
   
   return (
     <div style={{ width:200, flexShrink:0, background:P.bgSunken, borderRight:`1px solid ${P.border}`, display:"flex", flexDirection:"column", height:"100vh", position:"sticky", top:0 }}>
-      <div style={{ height:56, padding:"0 16px", display:"flex", alignItems:"center", gap: 12, borderBottom:`1px solid ${P.border}`, flexShrink:0 }}>
-        <Logo size={32} />
-        <div>
-          <div style={{ fontFamily:"DM Serif Display, serif", fontSize:17, color:P.textPrimary, lineHeight:1.2 }}>Asoka HMS</div>
-          <div style={{ fontSize:9, color:P.textMuted, letterSpacing:"0.02em" }}>Clinical Management</div>
+      <div style={{ height:56, padding:"0 16px", display:"flex", alignItems:"center", justifyContent:"space-between", borderBottom:`1px solid ${P.border}`, flexShrink:0 }}>
+        <div style={{ display:"flex", alignItems:"center", gap: 12 }}>
+          <Logo size={32} />
+          <div>
+            <div style={{ fontFamily:"DM Serif Display, serif", fontSize:17, color:P.textPrimary, lineHeight:1.2 }}>Asoka HMS</div>
+            <div style={{ fontSize:9, color:P.textMuted, letterSpacing:"0.02em" }}>Clinical Management</div>
+          </div>
         </div>
+        {onClose && (
+          <button onClick={onClose} style={{ background:"none", border:"none", cursor:"pointer", color:P.textMuted, display:"flex", padding:4 }}>
+            <X size={18} />
+          </button>
+        )}
       </div>
       <div style={{ flex:1, overflowY:"auto", padding:"6px 0" }}>
         {NAV.map(group => (
@@ -68,7 +75,7 @@ export function AppSidebar() {
               return (
                 <button 
                   key={path} 
-                  onClick={() => navigate(path)} 
+                  onClick={() => { navigate(path); onClose?.(); }} 
                   style={{ 
                     width:"100%", height:36, display:"flex", alignItems:"center", gap:8, padding:"0 16px", 
                     background:active?P.violetLight:"transparent", border:"none", 

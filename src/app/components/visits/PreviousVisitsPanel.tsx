@@ -7,6 +7,12 @@ import { listPrescriptionItems } from '../../../lib/services/prescriptions.servi
 import { getDocs, collection, query, orderBy } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 import type { Visit, Diagnosis, PrescriptionItem } from '../../../types';
+import { useIsMobile } from '../ui/use-mobile';
+
+// Strip leading "Dr." / "Dr " prefix to avoid "Dr. Dr. Foo"
+function displayDoctor(name: string): string {
+  return name.replace(/^Dr\.?\s+/i, '').trim();
+}
 
 interface SymptomNoteRow {
   symptomNumber: number;
@@ -24,7 +30,7 @@ interface VisitSummary {
 
 interface Props {
   patientId: string;
-  currentVisitId: string;
+  currentVisitId?: string;
 }
 
 async function listSymptomNotesByVisit(patientId: string, visitId: string): Promise<SymptomNoteRow[]> {
@@ -54,6 +60,7 @@ async function loadVisitDetail(patientId: string, visit: Visit): Promise<{ diagn
 }
 
 export function PreviousVisitsPanel({ patientId, currentVisitId }: Props) {
+  const isMobile = useIsMobile();
   const [summaries, setSummaries] = useState<VisitSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -138,10 +145,30 @@ export function PreviousVisitsPanel({ patientId, currentVisitId }: Props) {
                     ? s.visit.createdAt.toDate().toLocaleDateString('en-IN')
                     : '-')}
                 </div>
-                <div style={{ fontSize: 11, color: P.textMuted, marginTop: 1 }}>
-                  Dr. {s.visit.doctorName}
-                  {s.visit.totalFee ? ` · ?${s.visit.totalFee}` : ''}
-                  {s.visit.paymentStatus ? ` · ${s.visit.paymentStatus}` : ''}
+                <div style={{ fontSize: 11, color: P.textMuted, marginTop: 1, flexWrap: 'wrap', display: 'flex', gap: 4 }}>
+                  <span>Dr. {displayDoctor(s.visit.doctorName)}</span>
+                  {s.visit.totalFee ? (
+                    <>
+                      <span style={{ color: P.border }}>Â·</span>
+                      <span>
+                        {s.visit.paidAmount != null && s.visit.paidAmount > 0 && s.visit.paidAmount < s.visit.totalFee
+                          ? `Paid â‚¹${s.visit.paidAmount} / â‚¹${s.visit.totalFee}`
+                          : `â‚¹${s.visit.totalFee}`}
+                      </span>
+                    </>
+                  ) : null}
+                  {s.visit.paymentStatus ? (
+                    <>
+                      <span style={{ color: P.border }}>Â·</span>
+                      <span style={{
+                        color: s.visit.paymentStatus === 'PAID' ? P.sage
+                          : s.visit.paymentStatus === 'PARTIAL' ? P.ochre
+                          : P.sienna
+                      }}>
+                        {s.visit.paymentStatus}
+                      </span>
+                    </>
+                  ) : null}
                 </div>
               </div>
               {s.expanded ? <ChevronUp size={16} color={P.textMuted} /> : <ChevronDown size={16} color={P.textMuted} />}
@@ -150,7 +177,7 @@ export function PreviousVisitsPanel({ patientId, currentVisitId }: Props) {
             {s.expanded && (
               <div style={{ padding: '0 20px 16px' }}>
                 {/* Diagnoses + Prescription row */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 14 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 14 }}>
                   <div>
                     <div style={{ fontSize: 11, fontWeight: 500, color: P.textMuted, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
                       Diagnoses
@@ -175,12 +202,13 @@ export function PreviousVisitsPanel({ patientId, currentVisitId }: Props) {
                       <div style={{ fontSize: 12, color: P.textMuted }}>None recorded</div>
                     ) : (
                       s.prescriptions.map(rx => (
-                        <div key={rx.id} style={{ fontSize: 13, color: P.textPrimary, marginBottom: 3 }}>
+                        <div key={rx.id} style={{ fontSize: 13, color: P.textPrimary, marginBottom: 3, flexWrap: 'wrap', display: 'flex', gap: 4, alignItems: 'center' }}>
                           <span style={{ fontWeight: 500 }}>{rx.medicineName}</span>
-                          {rx.potency && <span style={{ color: P.textMuted, marginLeft: 4 }}>{rx.potency}</span>}
-                          {rx.dosage && <span style={{ color: P.textMuted }}> · {rx.dosage}</span>}
-                          {rx.repetition && <span style={{ color: P.textMuted }}> · {rx.repetition}</span>}
-                          {rx.durationDays && <span style={{ color: P.textMuted }}> · {rx.durationDays}d</span>}
+                          {rx.potency && <span style={{ color: P.textMuted }}>{rx.potency}</span>}
+                          {(rx as any).quantity && <span style={{ color: P.textMuted }}>Â· {(rx as any).quantity}</span>}
+                          {rx.dosage && <span style={{ color: P.textMuted }}>Â· {rx.dosage}</span>}
+                          {rx.repetition && <span style={{ color: P.textMuted }}>Â· {rx.repetition}</span>}
+                          {rx.durationDays && <span style={{ color: P.textMuted }}>Â· {rx.durationDays}d</span>}
                         </div>
                       ))
                     )}

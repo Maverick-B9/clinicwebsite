@@ -10,6 +10,11 @@ import { ArrowLeft, AlertTriangle, Printer, Plus, Trash, FileText, Edit, Receipt
 import { useAuthStore } from '../../store/auth.store';
 import { Card, Av, Bdg, Btn, fmtDate } from '../components/common/SharedUI';
 
+// Strip leading "Dr." / "Dr " prefix to avoid "Dr. Dr. Foo"
+function displayDoctor(name: string): string {
+  return name.replace(/^Dr\.?\s+/i, '').trim();
+}
+
 export function PatientProfilePage() {
   const { patientId } = useParams();
   const navigate = useNavigate();
@@ -115,10 +120,14 @@ export function PatientProfilePage() {
                           {v.isLocked && <span style={{ fontSize: 10, color: P.textMuted, marginLeft: 6 }}>[Locked]</span>}
                         </div>
                         <div style={{ fontSize: 12, color: P.textSecondary }}>
-                          {v.visitDate ? fmtDate(v.visitDate) : fmtDate(v.createdAt)} · Dr. {v.doctorName}
+                          {v.visitDate ? fmtDate(v.visitDate) : fmtDate(v.createdAt)} · Dr. {displayDoctor(v.doctorName)}
                         </div>
                         <div style={{ fontSize: 11, color: P.textMuted, marginTop: 2 }}>
-                          {v.totalFee ? `₹${v.totalFee}` : '—'}
+                          {v.totalFee ? (
+                            v.paidAmount != null && v.paidAmount > 0 && v.paidAmount < v.totalFee
+                              ? `Paid ₹${v.paidAmount} / ₹${v.totalFee}`
+                              : `₹${v.totalFee}`
+                          ) : '—'}
                           {v.paymentStatus && (
                             <span style={{ marginLeft: 6, color: v.paymentStatus === 'PAID' ? P.sage : v.paymentStatus === 'PARTIAL' ? P.ochre : P.sienna }}>
                               ({v.paymentStatus})

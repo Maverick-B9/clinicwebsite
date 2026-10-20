@@ -172,7 +172,7 @@ export function ClinicalNotesCard({ patientId, visitId, visitNumber, visitDate, 
 
       {existingSymptoms.length > 0 && !readOnly && (
         <div style={{ padding: '10px 20px', borderBottom: `1px solid ${P.border}`, background: P.bgSunken }}>
-          <div style={{ fontSize: 11, color: P.textMuted, marginBottom: 6 }}>Symptoms from previous visits — click to add notes:</div>
+          <div style={{ fontSize: 11, color: P.textMuted, marginBottom: 6 }}>Symptoms from previous visits Â— click to add notes:</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {existingSymptoms.map(sym => {
               const added = !!entries.find(e => e.symptomNumber === sym.number);
@@ -191,7 +191,7 @@ export function ClinicalNotesCard({ patientId, visitId, visitNumber, visitDate, 
                     fontFamily: 'inherit',
                   }}
                 >
-                  #{sym.number} — {sym.label}
+                  #{sym.number} Â— {sym.label}
                 </button>
               );
             })}
@@ -248,7 +248,7 @@ export function ClinicalNotesCard({ patientId, visitId, visitNumber, visitDate, 
                 <div style={{ fontSize: 11, fontWeight: 500, color: P.textMuted, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Previous notes for this symptom</div>
                 {entry.history.map((h, hi) => (
                   <div key={hi} style={{ padding: '6px 0', borderBottom: hi < entry.history.length - 1 ? `1px solid ${P.border}` : 'none' }}>
-                    <div style={{ fontSize: 11, color: P.textMuted, marginBottom: 2 }}>Visit #{h.visitNumber} — {h.visitDate}</div>
+                    <div style={{ fontSize: 11, color: P.textMuted, marginBottom: 2 }}>Visit #{h.visitNumber} Â— {h.visitDate}</div>
                     <div style={{ fontSize: 13, color: P.textPrimary }}>{h.notes}</div>
                   </div>
                 ))}
