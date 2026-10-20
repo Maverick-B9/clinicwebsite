@@ -32,8 +32,21 @@ service cloud.firestore {
       allow delete: if false;
 
       match /visits/{visitId} {
+        // Clinical roles: full read+write
         allow read, write: if isClinical();
 
+        // Receptionist: read the visit document (exposes visitNotes/clinicalNotes —
+        // if the clinic wants to restrict that, move those fields to a clinical-only
+        // subcollection as a follow-up; not done now to avoid data migration).
+        allow read: if isReceptionist();
+
+        // Receptionist: update ONLY payment-related fields (used by recordPayment mirror)
+        allow update: if isReceptionist() &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['paymentStatus', 'paidAmount', 'paidAt', 'paymentMethod',
+                      'paymentReference', 'updatedAt']);
+
+        // Clinical-only subcollections (Receptionist cannot access)
         match /diagnoses/{id} {
           allow read, write: if isClinical();
         }
@@ -79,6 +92,8 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Invoices and payments: all signed-in users can read and write.
+    // This allows Receptionists to record payments.
     match /invoices/{id} {
       allow read, write: if isSignedIn();
       allow delete: if false;

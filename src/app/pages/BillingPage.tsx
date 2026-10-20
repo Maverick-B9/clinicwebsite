@@ -1,12 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { P } from '../utils/palette';
-import { Plus, TrendingUp, AlertCircle, DollarSign, Printer, MessageCircle, X, CheckCircle } from 'lucide-react';
+import { Plus, TrendingUp, AlertCircle, DollarSign, Printer, MessageCircle, X, CheckCircle, AlertTriangle } from 'lucide-react';
 import { Btn, Card, StatCard, Bdg, Inp, Sel, fmtDate } from '../components/common/SharedUI';
 import { listInvoices, recordPayment } from '../../lib/services/invoices.service';
 import { generateReceiptPDF } from '../../lib/pdf/receipt';
+import { useAuthStore } from '../../store/auth.store';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import type { Invoice } from '../../types';
 
 export function BillingPage() {
+  const { user } = useAuthStore();
+  const queryClient = useQueryClient();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
@@ -19,7 +24,11 @@ export function BillingPage() {
 
   const reload = () => {
     setLoading(true);
-    listInvoices({}).then(data => { setInvoices(data); setLoading(false); });
+    listInvoices({}).then(data => { setInvoices(data); setLoading(false); }).catch(err => {
+      console.error('[BillingPage] listInvoices failed:', err?.code, err);
+      toast.error(`Failed to load invoices: ${err?.code ?? err?.message}`);
+      setLoading(false);
+    });
   };
 
   useEffect(() => { reload(); }, []);
@@ -39,24 +48,36 @@ export function BillingPage() {
   const closeDrawer = () => { setDrawerOpen(false); setSelectedInvoice(null); setSuccessMsg(''); };
 
   const handlePayment = async () => {
-    if (!selectedInvoice) { alert('Please select an invoice.'); return; }
+    if (!selectedInvoice) { toast.error('Please select an invoice.'); return; }
     const amount = parseFloat(payAmount);
-    if (isNaN(amount) || amount <= 0) { alert('Enter a valid amount.'); return; }
+    if (isNaN(amount) || amount <= 0) { toast.error('Enter a valid amount.'); return; }
     setSaving(true);
     try {
-      await recordPayment(selectedInvoice.id, {
+      const result = await recordPayment(selectedInvoice.id, {
         amount,
         method: payMethod as any,
         reference: payRef,
         paidAt: new Date() as any,
-        recordedBy: 'system',
+        recordedBy: user?.id ?? 'unknown',
       });
+      if (!result.visitSynced) {
+        // Payment saved but visit status could not be mirrored
+        toast.warning(
+          `Payment of ₹${amount} recorded. Visit status may not reflect immediately — reload the patient profile.`,
+          { duration: 6000 }
+        );
+      } else {
+        toast.success(`₹${amount} recorded successfully!`);
+      }
       setSuccessMsg(`✓ ₹${amount} recorded successfully!`);
+      queryClient.invalidateQueries({ queryKey: ['visits'] });
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
       reload();
-      setTimeout(() => closeDrawer(), 1400);
-    } catch (err) {
-      console.error(err);
-      alert('Failed to record payment. Check console.');
+      setTimeout(() => closeDrawer(), 1800);
+    } catch (err: any) {
+      const code = err?.code ?? 'unknown';
+      console.error('[BillingPage] recordPayment failed:', code, err);
+      toast.error(`Payment failed (${code}): ${err?.message ?? 'Check console for details.'}`);
     } finally {
       setSaving(false);
     }
@@ -64,7 +85,7 @@ export function BillingPage() {
   
   return (
     <div>
-      <h1 style={{ fontSize:18, fontWeight:500, color:P.textPrimary, marginBottom:18 }}>Billing & Invoices</h1>
+      <h1 style={{ fontSize:18, fontWeight:500, color:P.textPrimary, marginBottom:18 }}>Billing &amp; Invoices</h1>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:14, marginBottom:20 }}>
         <StatCard icon={<TrendingUp size={18}/>} label="Total collected revenue" value={`₹${revenueThisMonth.toLocaleString('en-IN')}`} highlight/>
         <StatCard icon={<AlertCircle size={18}/>} label="Outstanding balance" value={`₹${outstanding.toLocaleString('en-IN')}`} subColor={P.sienna}/>
@@ -76,7 +97,7 @@ export function BillingPage() {
           <Btn variant="primary" size="sm" icon={<Plus size={13}/>} onClick={() => openDrawer()}>Record payment</Btn>
         </div>
         <table style={{ width:"100%", borderCollapse:"collapse" }}>
-          <thead><tr>{["Date","Patient","Visit #","Consultation","Medicines","Total","Status","Actions"].map(h => <th key={h} style={{ padding:"9px 16px", textAlign:"left", fontSize:10, fontWeight:500, color:P.textMuted, letterSpacing:"0.06em", textTransform:"uppercase", borderBottom:`1px solid ${P.border}` }}>{h}</th>)}</tr></thead>
+          <thead><tr>{["Date","Patient","Invoice #","Consultation","Medicines","Total","Status","Actions"].map(h => <th key={h} style={{ padding:"9px 16px", textAlign:"left", fontSize:10, fontWeight:500, color:P.textMuted, letterSpacing:"0.06em", textTransform:"uppercase", borderBottom:`1px solid ${P.border}` }}>{h}</th>)}</tr></thead>
           <tbody>
             {loading ? (
               <tr><td colSpan={8} style={{ padding: 20, textAlign: 'center', color: P.textMuted }}>Loading invoices...</td></tr>
@@ -91,7 +112,14 @@ export function BillingPage() {
                 <td style={{ padding:"10px 16px", fontSize:12, fontFamily:"JetBrains Mono, monospace", color:P.textSecondary }}>₹{inv.medicineFee}</td>
                 <td style={{ padding:"10px 16px", fontSize:13, fontFamily:"JetBrains Mono, monospace", fontWeight:600, color:P.textPrimary }}>₹{inv.total}</td>
                 <td style={{ padding:"10px 16px" }}>
-                  <Bdg variant={inv.status === 'PAID' ? 'green' : inv.status === 'PARTIAL' ? 'gold' : 'sienna'}>{inv.status}</Bdg>
+                  <div>
+                    <Bdg variant={inv.status === 'PAID' ? 'green' : inv.status === 'PARTIAL' ? 'gold' : 'sienna'}>{inv.status}</Bdg>
+                    {inv.status === 'PARTIAL' && (
+                      <div style={{ fontSize:10, color:P.textMuted, marginTop:2 }}>
+                        Paid ₹{inv.amountPaid} / ₹{inv.total}
+                      </div>
+                    )}
+                  </div>
                 </td>
                 <td style={{ padding:"10px 16px" }}>
                   <div style={{ display:"flex", gap:4 }}>
@@ -118,7 +146,7 @@ export function BillingPage() {
                 <div style={{ textAlign: 'center', padding: '32px 0', color: P.sage, fontSize: 16, fontWeight: 500 }}>{successMsg}</div>
               ) : (
                 <>
-                  {/* Invoice selector — shown when opened from top button (no pre-selection) */}
+                  {/* Invoice selector */}
                   <div>
                     <div style={{ fontSize:11, fontWeight:500, color:P.textSecondary, marginBottom:4, letterSpacing:'0.04em' }}>Invoice</div>
                     <select
@@ -148,6 +176,10 @@ export function BillingPage() {
                   <Inp label="Amount received" pre={<span style={{ fontFamily:"JetBrains Mono, monospace", fontSize:12 }}>₹</span>} value={payAmount} onChange={setPayAmount} placeholder="Amount"/>
                   <Sel label="Payment method" value={payMethod} onChange={setPayMethod} options={['CASH','UPI','CARD','INSURANCE','CHEQUE','ONLINE','OTHER'].map(m => ({ value:m, label:m }))}/>
                   <Inp label="Reference / UPI ID" value={payRef} onChange={setPayRef} placeholder="Optional"/>
+                  <div style={{ fontSize:11, color:P.textMuted, display:'flex', alignItems:'center', gap:4 }}>
+                    <AlertTriangle size={12} />
+                    Recording as: <strong>{user?.name ?? 'Unknown'}</strong> ({user?.role})
+                  </div>
                   <Btn variant="primary" fullWidth icon={<CheckCircle size={14}/>} onClick={handlePayment}>
                     {saving ? 'Recording...' : 'Record Payment'}
                   </Btn>

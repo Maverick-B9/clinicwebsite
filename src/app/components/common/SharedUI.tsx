@@ -41,13 +41,13 @@ export function Inp({ label, value, onChange, placeholder, type="text", pre, app
   );
 }
 
-export function Sel({ label, value, onChange, options, placeholder, name, defaultValue }: { label?: string; value?: string; onChange?: (v: string) => void; options: { value: string; label: string }[]; placeholder?: string; name?: string; defaultValue?: string; }) {
+export function Sel({ label, value, onChange, options, placeholder, name, defaultValue, disabled }: { label?: string; value?: string; onChange?: (v: string) => void; options: { value: string; label: string }[]; placeholder?: string; name?: string; defaultValue?: string; disabled?: boolean; }) {
   const [focused, setFocused] = useState(false);
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
       {label && <label style={{ fontSize:11, fontWeight:500, color:P.textSecondary, letterSpacing:"0.04em" }}>{label}</label>}
       <div style={{ height:36, display:"flex", alignItems:"center", background:P.bgSunken, border:`1.5px solid ${focused?P.violet:P.border}`, borderRadius:8, overflow:"hidden", transition:"border-color 150ms", boxShadow:focused?"0 1px 3px rgba(28,26,23,0.08)":"none" }}>
-        <select name={name} value={value} defaultValue={defaultValue} onChange={e => onChange?.(e.target.value)} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} style={{ flex:1, height:"100%", background:"transparent", border:"none", outline:"none", fontSize:13, color:P.textPrimary, fontFamily:"inherit", padding:"0 10px", cursor:"pointer", appearance:"none" }}>
+        <select name={name} value={value} defaultValue={defaultValue} disabled={disabled} onChange={e => onChange?.(e.target.value)} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} style={{ flex:1, height:"100%", background:"transparent", border:"none", outline:"none", fontSize:13, color:disabled?P.textMuted:P.textPrimary, fontFamily:"inherit", padding:"0 10px", cursor:disabled?"default":"pointer", appearance:"none" }}>
           {placeholder && <option value="">{placeholder}</option>}
           {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>

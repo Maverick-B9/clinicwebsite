@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { P } from '../utils/palette';
-import { Settings, Save, CheckCircle, Download, Upload } from 'lucide-react';
+import { Settings, Save, CheckCircle, Download, Upload, RefreshCw } from 'lucide-react';
 import { Btn, Card, Inp, Sel } from '../components/common/SharedUI';
 import { useTheme } from 'next-themes';
 import { useAuthStore } from '../../store/auth.store';
@@ -8,6 +8,8 @@ import { createStaffAccount, resetStaffPassword } from '../../lib/auth';
 import { listUsers, uploadStaffSignature } from '../../lib/services/users.service';
 import { clearAllInvoices } from '../../lib/services/invoices.service';
 import { syncVisitCounts } from '../../lib/services/patients.service';
+import { repairPaymentRecords, type RepairSummary } from '../../lib/services/repair.service';
+import { toast } from 'sonner';
 import type { UserProfile } from '../../types';
 
 export function SettingsPage() {
@@ -18,6 +20,29 @@ export function SettingsPage() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [formData, setFormData] = useState({ name: '', email: '', role: 'DOCTOR', password: '' });
+
+  const [repairing, setRepairing] = useState(false);
+  const [repairProgress, setRepairProgress] = useState('');
+  const [repairSummary, setRepairSummary] = useState<RepairSummary | null>(null);
+
+  const handleRepairPayments = async () => {
+    if (!confirm("This will inspect all visits and invoices, unlock locked visits, generate missing invoices for un-invoiced visits, and synchronize status between invoices and visits. Proceed?")) {
+      return;
+    }
+    setRepairing(true);
+    setRepairProgress('Starting repair analysis...');
+    try {
+      const summary = await repairPaymentRecords((msg) => setRepairProgress(msg));
+      setRepairSummary(summary);
+      toast.success(`Repair complete! Processed ${summary.totalVisits} visits, created ${summary.bucketACreated} invoices, synced ${summary.syncedBCDE} visits, unlocked ${summary.unlockedCount} visits.`);
+    } catch (err: any) {
+      console.error('[repairPaymentRecords] error:', err?.code, err);
+      toast.error(`Repair failed (${err?.code || 'unknown'}): ${err?.message}`);
+    } finally {
+      setRepairing(false);
+      setRepairProgress('');
+    }
+  };
 
   useEffect(() => {
     if (user?.role === 'ADMIN' && sub === 'staff') {
@@ -93,22 +118,55 @@ export function SettingsPage() {
               
               {user?.role === 'ADMIN' && (
                 <>
-                  <div style={{ fontSize:15, fontWeight:500, color:P.textPrimary, marginBottom:16 }}>Danger Zone (Admin Only)</div>
-                  <div style={{ display:"flex", gap:10 }}>
-                    <Btn variant="danger" onClick={async () => {
-                      if (confirm("Are you sure you want to delete ALL invoice and revenue data? This cannot be undone.")) {
-                        await clearAllInvoices();
-                        alert("All revenues cleared.");
-                      }
-                    }}>Clear Revenue Data</Btn>
-                    
+                  <div style={{ fontSize:15, fontWeight:500, color:P.textPrimary, marginBottom:16 }}>System Maintenance & Danger Zone (Admin Only)</div>
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:10, marginBottom:16 }}>
+                    <Btn 
+                      variant="primary" 
+                      icon={<RefreshCw size={13} />} 
+                      onClick={handleRepairPayments} 
+                      disabled={repairing}
+                    >
+                      {repairing ? (repairProgress || 'Repairing…') : 'Repair payment records'}
+                    </Btn>
+
                     <Btn variant="secondary" onClick={async () => {
                       if (confirm("Syncing visit counts might take a moment. Proceed?")) {
                         await syncVisitCounts();
                         alert("Visit counts synchronized successfully.");
                       }
                     }}>Sync Visit Counts</Btn>
+
+                    <Btn variant="danger" onClick={async () => {
+                      if (confirm("Are you sure you want to delete ALL invoice and revenue data? This cannot be undone.")) {
+                        await clearAllInvoices();
+                        alert("All revenues cleared.");
+                      }
+                    }}>Clear Revenue Data</Btn>
                   </div>
+
+                  {repairSummary && (
+                    <div style={{ background: P.bgSunken, border: `1px solid ${P.border}`, borderRadius: 8, padding: 14, marginTop: 12 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: P.textPrimary, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                        <CheckCircle size={15} color={P.sage} />
+                        Repair Summary
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8, marginBottom: 10, fontSize: 12 }}>
+                        <div>Total Visits: <strong>{repairSummary.totalVisits}</strong></div>
+                        <div>Unlocked: <strong>{repairSummary.unlockedCount}</strong></div>
+                        <div>Invoices Created (A): <strong>{repairSummary.bucketACreated}</strong></div>
+                        <div>Synced (B/C/D/E): <strong>{repairSummary.syncedBCDE}</strong></div>
+                        <div>Bucket G (Review): <strong>{repairSummary.bucketGReportOnly}</strong></div>
+                        <div>Duplicates: <strong>{repairSummary.duplicatesReportOnly}</strong></div>
+                      </div>
+                      {repairSummary.details.length > 0 && (
+                        <div style={{ maxHeight: 160, overflowY: "auto", fontSize: 11, fontFamily: "JetBrains Mono, monospace", background: P.bgBase, padding: 8, borderRadius: 6 }}>
+                          {repairSummary.details.map((d, i) => (
+                            <div key={i} style={{ color: P.textSecondary, marginBottom: 2 }}>• {d}</div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </>
               )}
             </div>
