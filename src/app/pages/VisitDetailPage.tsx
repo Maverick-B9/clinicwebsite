@@ -3,23 +3,35 @@ import { useParams, useNavigate } from 'react-router';
 import { getPatient } from '../../lib/services/patients.service';
 import { getVisit, updateVisit, saveVisit } from '../../lib/services/visits.service';
 import { listDiagnoses } from '../../lib/services/diagnoses.service';
-import { listPrescriptionItems, addPrescriptionItem, updatePrescriptionItem } from '../../lib/services/prescriptions.service';
+import { listPrescriptionItems, addPrescriptionItem, updatePrescriptionItem, deletePrescriptionItem } from '../../lib/services/prescriptions.service';
 import type { Patient, Visit, PaymentMethod } from '../../types';
 import { P } from '../utils/palette';
-import { ArrowLeft, AlertTriangle, Lock, Edit2, CheckCircle } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, Lock, Unlock, Edit2, CheckCircle } from 'lucide-react';
 import { SectionCard, Btn, Inp, Sel, Bdg } from '../components/common/SharedUI';
 import { DiagnosesCard } from '../components/visits/DiagnosesCard';
 import { PrescriptionCard } from '../components/visits/PrescriptionCard';
 import { ClinicalNotesCard } from '../components/visits/ClinicalNotesCard';
 import { FormProvider, useForm } from 'react-hook-form';
+import { useAuthStore } from '../../store/auth.store';
+import { recordVisitPayment } from '../../lib/services/invoices.service';
+import { useQueryClient } from '@tanstack/react-query';
+import { useIsMobile } from '../components/ui/use-mobile';
+import { toast } from 'sonner';
 
 export function VisitDetailPage() {
   const { patientId, visitId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
+  const isReceptionist = user?.role === 'RECEPTIONIST';
   const [patient, setPatient] = useState<Patient | null>(null);
   const [visit, setVisit] = useState<Visit | null>(null);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  // Track prescription item IDs that were removed in edit mode
+  const [removedRxIds, setRemovedRxIds] = useState<string[]>([]);
 
   const methods = useForm({
     defaultValues: {
@@ -38,10 +50,9 @@ export function VisitDetailPage() {
     },
   });
 
-  useEffect(() => {
+  const loadVisitData = () => {
     if (!patientId || !visitId) return;
-    // Load ALL data in a single Promise.all so dataLoaded=true is only set
-    // after patient, visit, diagnoses, and prescriptions are all available.
+    setDataLoaded(false);
     Promise.all([
       getPatient(patientId),
       getVisit(patientId, visitId),
@@ -50,12 +61,14 @@ export function VisitDetailPage() {
     ]).then(([p, v, dx, rx]) => {
       setPatient(p);
       setVisit(v);
+      setRemovedRxIds([]);
       methods.reset({
         diagnoses: dx.map(d => ({ id: d.id, type: d.type, text: d.text })),
         prescriptionItems: rx.map(item => ({
           id: item.id,
           medicine: item.medicineName ?? '',
           potency: item.potency ?? '',
+          quantity: (item as any).quantity ?? '',
           dosage: item.dosage ?? '',
           repetition: item.repetition ?? '',
           durationDays: item.durationDays ?? 5,
@@ -73,64 +86,123 @@ export function VisitDetailPage() {
         visitDate: v.visitDate ?? new Date().toISOString().split('T')[0],
         paymentMethod: v.paymentMethod ?? 'CASH',
       });
-      // Set dataLoaded LAST — after patient+visit+reset are all done
       setDataLoaded(true);
     }).catch(err => {
       console.error('VisitDetailPage: failed to load visit data', err);
-      setDataLoaded(true); // unblock UI even on error
+      setDataLoaded(true);
     });
+  };
+
+  useEffect(() => {
+    loadVisitData();
   }, [patientId, visitId]);
+
+  const handleUnlock = async () => {
+    if (!patientId || !visitId) return;
+    if (!confirm('Unlock this visit for editing?')) return;
+    try {
+      await updateVisit(patientId, visitId, { isLocked: false });
+      setVisit(prev => prev ? { ...prev, isLocked: false } : prev);
+      toast.success('Visit unlocked.');
+    } catch (err: any) {
+      console.error('[VisitDetailPage] unlock failed:', err?.code, err);
+      toast.error(`Unlock failed (${err?.code ?? 'unknown'})`);
+    }
+  };
 
   const handleSaveEdits = async () => {
     if (!patientId || !visitId) return;
-    const values = methods.getValues();
-    const totalFee =
-      parseFloat(values.consultationFee || '0') +
-      parseFloat(values.medicineFee || '0') -
-      parseFloat(values.discount || '0');
+    if (saving) return;
+    setSaving(true);
+    try {
+      const values = methods.getValues();
+      // saveVisit computes totalFee and paymentStatus authoritatively
+      await saveVisit(patientId, visitId, {
+        consultationFee: parseFloat(values.consultationFee || '0'),
+        medicineFee: parseFloat(values.medicineFee || '0'),
+        discount: parseFloat(values.discount || '0'),
+        paidAmount: parseFloat(values.paidAmount || '0'),
+        followUpDays: parseInt(values.followupDays || '0'),
+        visitNotes: values.visitNotes || '',
+        clinicalNotes: values.clinicalNotes || '',         // ← was missing
+        visitDate: values.visitDate || '',
+        paymentMethod: values.paymentMethod as any,
+        paymentReference: values.paymentReference || '',   // ← was missing
+        isDraft: false,
+      });
 
-    const paid = parseFloat(values.paidAmount || '0');
-    const due = totalFee - paid;
-    let paymentStatus = 'PENDING';
-    if (paid >= totalFee && totalFee > 0) paymentStatus = 'PAID';
-    else if (paid > 0 && due > 0) paymentStatus = 'PARTIAL';
-
-    await saveVisit(patientId, visitId, {
-      consultationFee: parseFloat(values.consultationFee || '0'),
-      medicineFee: parseFloat(values.medicineFee || '0'),
-      discount: parseFloat(values.discount || '0'),
-      paidAmount: paid,
-      followUpDays: parseInt(values.followupDays || '0'),
-      visitNotes: values.visitNotes || '',
-      visitDate: values.visitDate || '',
-      paymentMethod: values.paymentMethod as any,
-      paymentStatus: paymentStatus as any,
-      totalFee,
-      isDraft: false,
-    });
-
-    const prescriptions: any[] = values.prescriptionItems || [];
-    for (let i = 0; i < prescriptions.length; i++) {
-      const item = prescriptions[i];
-      const firestoreItem = {
-        medicineName: item.medicine || item.medicineName || '',
-        potency: item.potency || '',
-        dosage: item.dosage || '',
-        repetition: item.repetition || '',
-        durationDays: Number(item.durationDays) || 0,
-        beforeAfterFood: item.beforeAfterFood || 'AFTER',
-        instructions: item.notes || '',
-        sortOrder: i,
-      };
-      if (!firestoreItem.medicineName) continue;
-      if (!item.id) {
-        await addPrescriptionItem(patientId, visitId, firestoreItem);
-      } else {
-        await updatePrescriptionItem(patientId, visitId, item.id, firestoreItem);
+      // Persist prescriptions — new rows added, existing updated
+      const prescriptions: any[] = values.prescriptionItems || [];
+      for (let i = 0; i < prescriptions.length; i++) {
+        const item = prescriptions[i];
+        const firestoreItem = {
+          medicineName: item.medicine || item.medicineName || '',
+          potency: item.potency || '',
+          quantity: item.quantity || '',
+          dosage: item.dosage || '',
+          repetition: item.repetition || '',
+          durationDays: Number(item.durationDays) || 0,
+          beforeAfterFood: item.beforeAfterFood || 'AFTER',
+          instructions: item.notes || '',
+          sortOrder: i,
+        };
+        if (!firestoreItem.medicineName) continue;
+        if (!item.id) {
+          await addPrescriptionItem(patientId, visitId, firestoreItem);
+        } else {
+          await updatePrescriptionItem(patientId, visitId, item.id, firestoreItem);
+        }
       }
-    }
 
-    setIsEditing(false);
+      // Delete removed prescription rows
+      for (const rxId of removedRxIds) {
+        await deletePrescriptionItem(patientId, visitId, rxId);
+      }
+      setRemovedRxIds([]);
+
+      toast.success('Visit saved successfully.');
+      setIsEditing(false);
+      queryClient.invalidateQueries({ queryKey: ['visits', patientId] });
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      // Refresh data after save
+      loadVisitData();
+    } catch (err: any) {
+      const code = err?.code ?? 'unknown';
+      console.error('[VisitDetailPage] save failed:', code, err);
+      toast.error(`Save failed (${code}): ${err?.message ?? 'Check console.'}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleReceptionistPayment = async () => {
+    if (!patientId || !visitId) return;
+    const amount = parseFloat(methods.getValues('paidAmount') || '0');
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Enter a valid payment amount.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const method = methods.getValues('paymentMethod') as PaymentMethod;
+      const ref = methods.getValues('paymentReference') || '';
+      const recordedBy = user?.name || user?.email || 'Receptionist';
+      const result = await recordVisitPayment(patientId, visitId, amount, method, ref, recordedBy);
+      if (!result.visitSynced) {
+        toast.warning(`Payment of ₹${amount} recorded on invoice. Visit status mirror may take a moment.`);
+      } else {
+        toast.success(`Payment of ₹${amount} recorded successfully!`);
+      }
+      queryClient.invalidateQueries({ queryKey: ['visits', patientId] });
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      loadVisitData();
+    } catch (err: any) {
+      const code = err?.code ?? 'unknown';
+      console.error('[VisitDetailPage] receptionist payment failed:', code, err);
+      toast.error(`Payment failed (${code}): ${err?.message ?? 'Check console.'}`);
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (!patient || !visit || !dataLoaded) {
@@ -141,9 +213,14 @@ export function VisitDetailPage() {
     );
   }
 
-  const readOnly = visit?.isLocked && !isEditing;
+  // Clinical roles (ADMIN/DOCTOR) can always edit.
+  // Receptionist sees read-only view except payment block (handled separately).
+  const isAdmin = user?.role === 'ADMIN';
+  const isDoctor = user?.role === 'DOCTOR';
+  const isClinical = isAdmin || isDoctor;
+  const readOnly = !isEditing;
 
-  const visitDate = methods.watch('visitDate');
+  const visitDateVal = methods.watch('visitDate');
   const consultFee = methods.watch('consultationFee');
   const medicineFee = methods.watch('medicineFee');
   const discount = methods.watch('discount');
@@ -163,11 +240,6 @@ export function VisitDetailPage() {
   return (
     <FormProvider {...methods}>
       <div>
-        {visit.isLocked && (
-          <div style={{ background: P.bgSunken, border: `1px solid ${P.border}`, padding: '8px 16px', borderRadius: 8, marginBottom: 14, display: 'flex', gap: 8, fontSize: 13, color: P.textSecondary, alignItems: 'center' }}>
-            <Lock size={14} /> This visit is locked (read-only).
-          </div>
-        )}
         {patient.allergies?.length > 0 && (
           <div style={{ background: P.siennaLight, border: `1px solid ${P.sienna}`, borderRadius: 8, padding: '8px 16px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: P.sienna }}>
             <AlertTriangle size={15} /><strong>Allergy alert:</strong>&nbsp;{patient.allergies.join(', ')}
@@ -180,38 +252,37 @@ export function VisitDetailPage() {
               <div style={{ fontSize: 14, fontWeight: 500, color: P.textPrimary }}>{patient.name}</div>
               <div style={{ fontSize: 11, color: P.textMuted, fontFamily: 'JetBrains Mono, monospace' }}>
                 {patient.patientRefId} · Visit #{visit.visitNumber}
-                {visit.isLocked && <span style={{ marginLeft: 6 }}>[Locked]</span>}
+                {visit.isLocked && <span style={{ marginLeft: 6, color: P.textMuted }}>[Locked]</span>}
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {!readOnly && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ fontSize: 12, color: P.textMuted }}>Visit date:</span>
-                  {isEditing ? (
-                    <input
-                      type="date"
-                      {...methods.register('visitDate')}
-                      style={{ height: 28, padding: '0 8px', background: P.bgSunken, border: `1px solid ${P.border}`, borderRadius: 6, fontSize: 12, color: P.textPrimary, fontFamily: 'inherit', outline: 'none' }}
-                    />
-                  ) : (
-                    <span style={{ fontSize: 12, color: P.textPrimary, fontFamily: 'JetBrains Mono, monospace' }}>{visitDate}</span>
-                  )}
-                </div>
-              )}
-              {readOnly && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ fontSize: 12, color: P.textMuted }}>Visit date:</span>
-                  <span style={{ fontSize: 12, color: P.textPrimary, fontFamily: 'JetBrains Mono, monospace' }}>{visitDate}</span>
-                </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 12, color: P.textMuted }}>Visit date:</span>
+              {isEditing ? (
+                <input
+                  type="date"
+                  {...methods.register('visitDate')}
+                  style={{ height: 28, padding: '0 8px', background: P.bgSunken, border: `1px solid ${P.border}`, borderRadius: 6, fontSize: 12, color: P.textPrimary, fontFamily: 'inherit', outline: 'none' }}
+                />
+              ) : (
+                <span style={{ fontSize: 12, color: P.textPrimary, fontFamily: 'JetBrains Mono, monospace' }}>{visitDateVal}</span>
               )}
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {!visit?.isLocked && !isEditing && (
+            {/* ADMIN/DOCTOR: always show Edit; show Unlock separately if locked */}
+            {isClinical && !isEditing && (
               <Btn variant="secondary" size="sm" icon={<Edit2 size={13} />} onClick={() => setIsEditing(true)}>Edit visit</Btn>
             )}
+            {isClinical && !isEditing && visit.isLocked && (
+              <Btn variant="ghost" size="sm" icon={<Unlock size={13} />} onClick={handleUnlock}>Unlock</Btn>
+            )}
             {isEditing && (
-              <Btn variant="primary" size="sm" icon={<CheckCircle size={13} />} onClick={handleSaveEdits}>Save changes</Btn>
+              <>
+                <Btn variant="ghost" size="sm" onClick={() => { setIsEditing(false); loadVisitData(); }}>Cancel</Btn>
+                <Btn variant="primary" size="sm" icon={<CheckCircle size={13} />} onClick={handleSaveEdits} disabled={saving}>
+                  {saving ? 'Saving…' : 'Save changes'}
+                </Btn>
+              </>
             )}
             <Btn variant="ghost" size="sm" onClick={() => navigate(`/patients/${patient.id}`)}>Back to profile</Btn>
           </div>
@@ -222,12 +293,15 @@ export function VisitDetailPage() {
             patientId={patient.id}
             visitId={visitId!}
             visitNumber={visit.visitNumber}
-            visitDate={visitDate || new Date().toISOString().split('T')[0]}
+            visitDate={visitDateVal || new Date().toISOString().split('T')[0]}
             readOnly={readOnly || false}
           />
-          <PrescriptionCard readOnly={readOnly || false} />
-          <SectionCard title="Fee & Payment">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 14 }}>
+          <PrescriptionCard
+            readOnly={readOnly || false}
+            onRemove={(id: string) => setRemovedRxIds(prev => [...prev, id])}
+          />
+          <SectionCard title="Fee &amp; Payment">
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 12, marginBottom: 14 }}>
               <Inp label="Consultation fee" readOnly={readOnly || false} pre={<span style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace' }}>₹</span>} value={consultFee} onChange={v => methods.setValue('consultationFee', v)} />
               <Inp label="Medicine fee" readOnly={readOnly || false} pre={<span style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace' }}>₹</span>} value={medicineFee} onChange={v => methods.setValue('medicineFee', v)} />
               <Inp label="Discount" readOnly={readOnly || false} pre={<span style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace' }}>₹</span>} value={discount} onChange={v => methods.setValue('discount', v)} />
@@ -238,10 +312,46 @@ export function VisitDetailPage() {
               <div style={{ width: 1, height: 24, background: P.border, margin: '0 12px' }} />
               <Bdg variant={statusVariant}>{paymentStatus}</Bdg>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-              <Sel label="Payment Method" value={methods.watch('paymentMethod')} onChange={v => methods.setValue('paymentMethod', v)} options={PAYMENT_METHODS.map(m => ({ value: m, label: m }))} />
-              <Inp label="Paid Amount" readOnly={readOnly || false} pre={<span style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace' }}>₹</span>} value={paidAmount} onChange={v => methods.setValue('paidAmount', v)} />
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12, marginBottom: 14 }}>
+              <Sel 
+                label="Payment Method" 
+                value={methods.watch('paymentMethod')} 
+                onChange={v => methods.setValue('paymentMethod', v)} 
+                options={PAYMENT_METHODS.map(m => ({ value: m, label: m }))} 
+                disabled={!isEditing && !isReceptionist}
+              />
+              <Inp 
+                label="Paid Amount" 
+                readOnly={!isEditing && !isReceptionist} 
+                pre={<span style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace' }}>₹</span>} 
+                value={paidAmount} 
+                onChange={v => methods.setValue('paidAmount', v)} 
+              />
             </div>
+            {(!readOnly || isReceptionist) && (
+              <div style={{ marginBottom: 14 }}>
+                <Inp 
+                  label="Payment Reference" 
+                  readOnly={!isEditing && !isReceptionist} 
+                  value={methods.watch('paymentReference')} 
+                  onChange={v => methods.setValue('paymentReference', v)} 
+                  placeholder="Optional: UPI ID, cheque #, etc." 
+                />
+              </div>
+            )}
+            {isReceptionist && !isEditing && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10, marginBottom: 14 }}>
+                <Btn 
+                  variant="primary" 
+                  size="sm" 
+                  icon={<CheckCircle size={13} />} 
+                  onClick={handleReceptionistPayment} 
+                  disabled={saving}
+                >
+                  {saving ? 'Recording payment…' : 'Record payment'}
+                </Btn>
+              </div>
+            )}
             <Inp label="Visit Notes" readOnly={readOnly || false} value={methods.watch('visitNotes')} onChange={v => methods.setValue('visitNotes', v)} />
           </SectionCard>
         </div>

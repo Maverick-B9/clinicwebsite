@@ -5,7 +5,7 @@ import {
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../firebase';
 import type { Visit } from '../../types';
-import { upsertInvoiceForVisit } from './invoices.service';
+import { upsertInvoiceForVisit, computePaymentStatus } from './invoices.service';
 
 export async function createVisit(
   patientId: string,
@@ -15,6 +15,9 @@ export async function createVisit(
   const visitsRef = collection(db, 'patients', patientId, 'visits');
   let newVisit!: Visit;
 
+  // NOTE: getDocs inside a transaction is non-transactional (SDK limitation).
+  // To avoid duplicate visit numbers on concurrent opens, callers should avoid
+  // calling createVisit concurrently for the same patient.
   await runTransaction(db, async (tx) => {
     const q = query(visitsRef, orderBy('visitNumber', 'desc'), limit(1));
     const snap = await getDocs(q);
@@ -44,18 +47,18 @@ export async function getVisit(
   patientId: string,
   visitId: string,
 ): Promise<Visit> {
+  if (localStorage.debugPay === '1') {
+    console.group('[PAY] getVisit');
+    console.log('inputs:', { patientId, visitId });
+  }
   const snap = await getDoc(doc(db, 'patients', patientId, 'visits', visitId));
   if (!snap.exists()) throw new Error('Visit not found');
 
+  // NEVER write inside a getter. Auto-lock has been removed.
   const visit = { id: snap.id, ...snap.data() } as Visit;
-  if (!visit.isLocked && visit.createdAt) {
-    // Need to handle timestamp safely, it might be a server timestamp pending resolution
-    const createdAtMillis = typeof visit.createdAt?.toMillis === 'function' ? visit.createdAt.toMillis() : Date.now();
-    const hoursSince = (Date.now() - createdAtMillis) / 3_600_000;
-    if (hoursSince >= 24) {
-      await updateDoc(snap.ref, { isLocked: true });
-      visit.isLocked = true;
-    }
+  if (localStorage.debugPay === '1') {
+    console.log('visit:', { paymentStatus: visit.paymentStatus, paidAmount: visit.paidAmount, isLocked: visit.isLocked });
+    console.groupEnd();
   }
   return visit;
 }
@@ -86,27 +89,81 @@ export async function saveVisit(
   visitId: string,
   data: Partial<Visit>,
 ): Promise<void> {
+  if (localStorage.debugPay === '1') {
+    console.group('[PAY] saveVisit');
+    console.log('inputs:', { patientId, visitId, data });
+  }
   const visitRef = doc(db, 'patients', patientId, 'visits', visitId);
   const snap = await getDoc(visitRef);
   const existing = snap.exists() ? snap.data() : null;
   const wasDraft = existing?.isDraft === true;
 
-  await updateVisit(patientId, visitId, { ...data, isDraft: false });
+  // Compute totalFee and paymentStatus authoritatively here — never trust callers.
+  const cf = data.consultationFee ?? existing?.consultationFee ?? 0;
+  const mf = data.medicineFee ?? existing?.medicineFee ?? 0;
+  const dc = data.discount ?? existing?.discount ?? 0;
+  const totalFee = Math.max(0, cf + mf - dc);
+  const paidAmount = data.paidAmount ?? existing?.paidAmount ?? 0;
+  const paymentStatus = computePaymentStatus(totalFee, paidAmount);
 
-  const patientUpdates: any = {
-    lastVisitDate: new Date().toISOString().split('T')[0],
-    nextFollowUpDate: data.followUpDate ?? null,
-    updatedAt: serverTimestamp(),
-  };
+  if (localStorage.debugPay === '1') {
+    console.log('computed:', { totalFee, paidAmount, paymentStatus });
+  }
 
+  await updateVisit(patientId, visitId, {
+    ...data,
+    totalFee,
+    paymentStatus,
+    isDraft: false,
+  });
+
+  // Update patient fields carefully:
+  // - Only set lastVisitDate when this is the patient's latest non-draft visit.
+  // - Use the visit's own visitDate, not today's date.
+  // - Never null out nextFollowUpDate if it was not provided in data.
+  const allVisits = await listVisits(patientId);
+  const nonDrafts = allVisits.filter(v => !v.isDraft && v.id !== visitId);
+  const savedVisitDate = data.visitDate ?? existing?.visitDate ?? new Date().toISOString().split('T')[0];
+
+  // Find if this visit is the most recent by date
+  const isLatestVisit = nonDrafts.every(v => {
+    const otherDate = v.visitDate ?? '';
+    return !otherDate || otherDate <= savedVisitDate;
+  });
+
+  const patientUpdates: any = { updatedAt: serverTimestamp() };
   if (wasDraft) {
     patientUpdates.visitCount = increment(1);
+  }
+  if (isLatestVisit || wasDraft) {
+    patientUpdates.lastVisitDate = savedVisitDate;
+    // Only update nextFollowUpDate if explicitly provided
+    if (data.followUpDate !== undefined) {
+      patientUpdates.nextFollowUpDate = data.followUpDate ?? null;
+    }
   }
 
   await updateDoc(doc(db, 'patients', patientId), patientUpdates);
 
-  if (data.totalFee && data.totalFee > 0) {
-    await upsertInvoiceForVisit(patientId, visitId, data);
+  // Upsert invoice when there are fees or any payment
+  if (totalFee > 0 || paidAmount > 0) {
+    try {
+      await upsertInvoiceForVisit(patientId, visitId, {
+        ...data,
+        totalFee,
+        paidAmount,
+        paymentStatus,
+      });
+    } catch (err: any) {
+      console.error('[saveVisit] upsertInvoiceForVisit failed:', err?.code, err?.message);
+      // Re-throw so UI can show error to user
+      throw err;
+    }
+  }
+
+  if (localStorage.debugPay === '1') {
+    console.log('saveVisit complete');
+    console.groupEnd();
   }
 }
 
