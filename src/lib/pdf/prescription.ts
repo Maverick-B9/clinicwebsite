@@ -48,7 +48,8 @@ export async function generatePrescriptionPDF(
     }
     const text = `${index + 1}. ${item.medicineName} (${item.potency})`;
     doc.text(text, 14, y);
-    doc.text(`Dosage: ${item.dosage} · ${item.repetition} · ${item.durationDays} days`, 20, y + 5);
+    const qtyStr = (item as any).quantity ? ` · Qty: ${(item as any).quantity}` : '';
+    doc.text(`Dosage: ${item.dosage}${qtyStr} · ${item.repetition} · ${item.durationDays} days`, 20, y + 5);
     doc.text(`Instruction: ${item.beforeAfterFood}`, 20, y + 10);
     y += 18;
   });

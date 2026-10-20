@@ -143,6 +143,7 @@ export interface PrescriptionItem {
   medicineId?: string;
   medicineName: string;
   potency?: string;
+  quantity?: string;
   dosage?: string;
   repetition?: string;
   durationDays?: number;
